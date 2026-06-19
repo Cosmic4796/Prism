@@ -86,7 +86,7 @@ Prism handles Roblox cookies, so here's exactly how it treats them:
 
 ## 💬 Support
 
-Need help or found a bug? Join the **[Prism Support Discord](https://discord.gg/DISCORD-INVITE)** — post in `#get-help`, or check `#faq` first.
+Need help or found a bug? Join the **[Prism Support Discord]([https://discord.gg/DISCORD-INVITE](https://discord.gg/P4DHz8bjgy))** — post in `#get-help`, or check `#faq` first.
 
 ## ⚠️ Disclaimer
 
