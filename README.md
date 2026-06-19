@@ -8,7 +8,7 @@
 
 Grind with your alts, drop them into the **same server to trade**, browse games in‑app, and theme it your way.
 
-[![Download](https://img.shields.io/badge/⬇_Download-Prism.exe-7c6aff?style=for-the-badge)](https://github.com/Cosmic4796/Prism/releases/latest/download/Prism.exe)
+[![Download](https://img.shields.io/badge/⬇_Download-Prism.exe-7c6aff?style=for-the-badge)](https://github.com/Cosmic4796/Prism/releases/download/v1.0.0/Prism.exe))
 &nbsp;
 [![Discord](https://img.shields.io/badge/Discord-Support-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/P4DHz8bjgy)
 
