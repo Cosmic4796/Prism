@@ -10,7 +10,7 @@ Grind with your alts, drop them into the **same server to trade**, browse games 
 
 [![Download](https://img.shields.io/badge/⬇_Download-Prism.exe-7c6aff?style=for-the-badge)](https://github.com/Cosmic4796/Prism/releases/latest/download/Prism.exe)
 &nbsp;
-[![Discord](https://img.shields.io/badge/Discord-Support-5865F2?style=for-the-badge&logo=discord&logoColor=white)]([https://discord.gg/DISCORD-INVITE](https://discord.gg/P4DHz8bjgy))
+[![Discord](https://img.shields.io/badge/Discord-Support-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/P4DHz8bjgy)
 
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6?logo=windows)
 ![Downloads](https://img.shields.io/github/downloads/Cosmic4796/Prism/total)
@@ -86,7 +86,7 @@ Prism handles Roblox cookies, so here's exactly how it treats them:
 
 ## 💬 Support
 
-Need help or found a bug? Join the **[Prism Support Discord]([https://discord.gg/DISCORD-INVITE](https://discord.gg/P4DHz8bjgy))** — post in `#get-help`, or check `#faq` first.
+Need help or found a bug? Join the **[Prism Support Discord](https://discord.gg/P4DHz8bjgy)** — post in `#get-help`, or check `#faq` first.
 
 ## ⚠️ Disclaimer
 
