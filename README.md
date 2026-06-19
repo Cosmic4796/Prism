@@ -1,11 +1,3 @@
-<!--
-  Fill in the placeholders before publishing:
-   • Cosmic4796/Prism   → your GitHub repo path (used in badges + download links)
-   • DISCORD-INVITE        → your Prism Support invite code
-  Images live in /assets and use relative paths, so they render once this repo
-  (with the assets folder) is on GitHub.
--->
-
 <div align="center">
 
 <img src="assets/logo.png" width="120" alt="Prism logo" />
@@ -18,7 +10,7 @@ Grind with your alts, drop them into the **same server to trade**, browse games 
 
 [![Download](https://img.shields.io/badge/⬇_Download-Prism.exe-7c6aff?style=for-the-badge)](https://github.com/Cosmic4796/Prism/releases/latest/download/Prism.exe)
 &nbsp;
-[![Discord](https://img.shields.io/badge/Discord-Support-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/DISCORD-INVITE)
+[![Discord](https://img.shields.io/badge/Discord-Support-5865F2?style=for-the-badge&logo=discord&logoColor=white)]([https://discord.gg/DISCORD-INVITE](https://discord.gg/P4DHz8bjgy))
 
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6?logo=windows)
 ![Downloads](https://img.shields.io/github/downloads/Cosmic4796/Prism/total)
