@@ -1,0 +1,865 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prism</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+:root{
+  --accent:#7c6aff;--accent2:#9d6bff;--bg:#0a0b10;--grgb:22,24,32;--glassA:.62;--blur:14px;--radius:8px;--font:'Plus Jakarta Sans','Segoe UI',system-ui,sans-serif;
+  --fs:1;--gradAngle:135deg;--bgDim:.72;--bgImgBlur:0px;--bgImg:none;--scrimRgb:10,11,16;--inpBg:rgba(0,0,0,.28);
+  --onAccent:#fff;--accentText:#7c6aff;
+  --glass:rgba(var(--grgb),var(--glassA));--glass2:rgba(28,30,40,.94);
+  --row:rgba(255,255,255,.03);--rowHover:rgba(255,255,255,.07);--line:rgba(255,255,255,.08);
+  --text:#eceef2;--sub:#8b909a;--ok:#4ade9e;--red:#ff6b78;--grad:linear-gradient(var(--gradAngle),var(--accent),var(--accent2));
+  color-scheme:dark; /* render native controls (select popups, scrollbars) dark, not white */
+}
+/* light theme — overrides only the literal surface vars; accent/derived vars cascade */
+body.light{--bg:#eef0f5;--grgb:255,255,255;--glass:rgba(255,255,255,var(--glassA));--glass2:rgba(252,253,255,.96);--row:rgba(0,0,0,.035);--rowHover:rgba(0,0,0,.07);--line:rgba(0,0,0,.10);--text:#1b1d24;--sub:#5b616c;--scrimRgb:244,245,248;--inpBg:rgba(0,0,0,.05);color-scheme:light}
+/* background image layers (image can blur independently of the UI) */
+body.hasbg::before{content:'';position:fixed;inset:0;z-index:-2;background:var(--bgImg) center/cover no-repeat;filter:blur(var(--bgImgBlur));transform:scale(1.06)}
+body.hasbg::after{content:'';position:fixed;inset:0;z-index:-1;background:rgba(var(--scrimRgb),var(--bgDim))}
+/* segmented control */
+.seg{display:inline-flex;background:var(--row);border:1px solid var(--line);border-radius:var(--radius);padding:2px;gap:2px}
+.seg button{height:28px;padding:0 13px;border:0;background:transparent;color:var(--sub);font-weight:600;font-size:12.5px;border-radius:calc(var(--radius) - 2px);cursor:pointer;font-family:inherit;transition:.15s}
+.seg button:hover{color:var(--text)}.seg button.on{background:var(--grad);color:var(--onAccent)}
+.srow.grad-only{display:none}body.gradon .srow.grad-only{display:flex}
+/* minimal release: hide preview features (remove data-preview or set MINIMAL=false to expose) */
+body.minimal [data-preview],body.minimal #acctSearch,body.minimal .acct .iconbtn.star,body.minimal .acct .fstar,body.minimal #runPanel{display:none!important}
+.sc.custom.on{border-style:solid;border-color:#fff;color:var(--text)}
+.pane[data-pane="customize"] .sec,.pane[data-pane="settings"] .sec{max-width:720px}
+*{box-sizing:border-box;margin:0;padding:0;font-family:var(--font)}
+html,body{height:100%}
+body{background:radial-gradient(900px 560px at 84% -14%,color-mix(in srgb,var(--accent) 20%,transparent),transparent 60%),
+     radial-gradient(680px 520px at -4% 116%,color-mix(in srgb,var(--accent2) 13%,transparent),transparent 55%),var(--bg);
+  color:var(--text);display:flex;flex-direction:column;overflow:hidden;user-select:none;font-size:calc(14px*var(--fs))}
+body.no-anim *{animation:none!important;transition:none!important}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px}::-webkit-scrollbar-thumb:hover{background:var(--rowHover)}
+@keyframes upIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* splash */
+.splash{position:fixed;inset:0;z-index:600;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;transition:opacity .55s,visibility .55s}
+.splash.gone{opacity:0;visibility:hidden}
+.psvg{width:230px;height:170px;overflow:visible}
+.psvg .tri{fill:url(#tg);fill-opacity:0;stroke:#cdd0ff;stroke-width:2;stroke-linejoin:round;stroke-dasharray:350;stroke-dashoffset:350;animation:triDraw 1.05s .1s ease forwards,triFill .8s 1.05s ease forwards}
+@keyframes triDraw{to{stroke-dashoffset:0}}@keyframes triFill{to{fill-opacity:1}}
+.psvg .beam{stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-dasharray:130;stroke-dashoffset:130;filter:drop-shadow(0 0 6px rgba(255,255,255,.9));animation:beam .55s .75s ease forwards}
+@keyframes beam{to{stroke-dashoffset:0}}
+.psvg .ray{stroke-width:2.4;stroke-linecap:round;stroke-dasharray:130;stroke-dashoffset:130;opacity:0;animation:ray .7s ease forwards}
+.psvg .r1{stroke:#ff5a5a;animation-delay:1.15s}.psvg .r2{stroke:#ffae3d;animation-delay:1.22s}.psvg .r3{stroke:#ffe14d;animation-delay:1.29s}
+.psvg .r4{stroke:#46e08a;animation-delay:1.36s}.psvg .r5{stroke:#4aa3ff;animation-delay:1.43s}.psvg .r6{stroke:#9d6bff;animation-delay:1.5s}
+@keyframes ray{0%{stroke-dashoffset:130;opacity:0}40%{opacity:1}100%{stroke-dashoffset:0;opacity:.95}}
+.swordmark{font-weight:800;font-size:30px;letter-spacing:.18em;background:linear-gradient(95deg,var(--accent),var(--accent2) 55%,#ec4899);-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0;animation:upIn .6s 1.3s both}
+.sbar{width:180px;height:3px;background:var(--line);border-radius:2px;overflow:hidden}.sbar i{display:block;height:100%;width:0;background:var(--grad);animation:fillb 1.9s .2s ease forwards}
+@keyframes fillb{to{width:100%}}
+
+/* app open / close */
+#appwrap{position:fixed;top:0;left:0;width:100%;height:100%;transform-origin:0 0;overflow:hidden}
+.appinner{display:flex;width:100%;height:100%;min-height:0;opacity:0;transform:translateY(10px) scale(.99);
+  transition:opacity .5s ease,transform .55s cubic-bezier(.2,.8,.3,1),filter .45s ease;transform-origin:50% 46%}
+.appinner.ready{opacity:1;transform:none}
+body.closing .appinner{opacity:0;transform:scale(.9) translateY(10px);filter:blur(7px)}
+body.minimizing .appinner{opacity:0;transform:scale(.8) translateY(80px);transition:transform .24s ease-in,opacity .24s ease-in}
+body.closing:after{content:"";position:fixed;inset:0;z-index:480;pointer-events:none;transform-origin:50% 46%;
+  background:radial-gradient(440px 440px at 50% 46%,color-mix(in srgb,var(--accent) 48%,transparent),transparent 72%);
+  opacity:0;animation:closeGlow .5s ease forwards}
+@keyframes closeGlow{0%{opacity:0;transform:scale(.55)}45%{opacity:.95}100%{opacity:0;transform:scale(1.35)}}
+
+/* sidebar */
+.side{width:208px;flex:none;display:flex;flex-direction:column;gap:2px;padding:14px 12px 12px;border-right:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.022),transparent 24%)}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 14px}
+.brand .logo{width:26px;height:26px;flex:none}
+.brand b{font-size:17px;font-weight:800;letter-spacing:-.3px;background:linear-gradient(95deg,var(--accent),var(--accent2) 60%,#ec4899);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand .ver{margin-left:auto;font-size:10px;font-weight:700;color:var(--sub);background:var(--row);border:1px solid var(--line);padding:2px 7px;border-radius:6px}
+.nav{display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:var(--radius);color:var(--sub);font-size:calc(13.5px*var(--fs));font-weight:600;cursor:pointer;transition:.15s;position:relative}
+.nav svg{width:17px;height:17px;flex:none;opacity:.85}.nav:hover{background:var(--rowHover);color:var(--text)}
+.nav.on{background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 18%,transparent),transparent);color:var(--text)}
+.nav.on svg{opacity:1;color:var(--accent)}
+.nav.on:before{content:"";position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:3px;height:16px;border-radius:0 2px 2px 0;background:var(--accent)}
+.sspace{flex:1}
+.sidefoot{border-top:1px solid var(--line);margin:6px -12px -12px;padding:12px}
+.statline{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;padding:7px 9px;border-radius:var(--radius);background:var(--row);border:1px solid var(--line)}
+.statline .dot{width:8px;height:8px;border-radius:50%}.statline.on{color:var(--ok)}.statline.on .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.statline.off{color:var(--red)}.statline.off .dot{background:var(--red)}
+.cnt{font-size:11.5px;color:var(--sub);padding:8px 9px 0}
+
+/* main */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.head{display:flex;align-items:center;padding:14px 12px 14px 22px;border-bottom:1px solid var(--line);gap:12px}
+.head h1{font-size:calc(17px*var(--fs));font-weight:700;letter-spacing:-.2px}.head p{font-size:calc(12px*var(--fs));color:var(--sub);margin-top:2px}
+.hgrow{flex:1;align-self:stretch}
+.winbtns{display:flex;gap:2px}
+.wbtn{width:40px;height:30px;border-radius:6px;display:grid;place-items:center;color:var(--sub);cursor:pointer;transition:.13s}
+.wbtn:hover{background:var(--rowHover);color:var(--text)}.wbtn.close:hover{background:var(--red);color:#fff}.wbtn svg{width:15px;height:15px}
+.panebox{flex:1;min-height:0;display:flex}
+.pane{display:none;flex:1;min-width:0;flex-direction:column}.pane.on{display:flex;animation:pop .28s both}
+
+/* buttons */
+.btn{height:34px;padding:0 14px;border-radius:var(--radius);background:var(--row);border:1px solid var(--line);color:var(--text);font-size:calc(13px*var(--fs));font-weight:600;display:inline-flex;align-items:center;gap:7px;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn:hover{background:var(--rowHover);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}.btn:disabled{opacity:.45;cursor:default;transform:none}
+.btn.solid{background:var(--grad);border:0;color:var(--onAccent);box-shadow:0 6px 18px -7px var(--accent)}.btn.solid:hover{filter:brightness(1.08)}
+.btn.big{height:40px;padding:0 22px;font-size:14px}.btn.danger:hover{border-color:var(--red);color:var(--red)}.btn svg{width:15px;height:15px}
+
+/* accounts */
+.toolbar{display:flex;align-items:center;gap:9px;padding:14px 20px 6px}.tgap{flex:1}
+.accts{flex:1;overflow-y:auto;padding:8px 20px 4px;display:flex;flex-direction:column;gap:9px}
+.acct{display:flex;align-items:center;gap:14px;padding:11px 16px;border-radius:var(--radius);position:relative;overflow:hidden;cursor:pointer;background:var(--glass);border:1px solid var(--line);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));transition:.16s;animation:upIn .34s both}
+.acct:hover{transform:translateY(-1px);background:var(--rowHover);border-color:color-mix(in srgb,var(--accent) 26%,var(--line))}
+.acct.sel{border-color:color-mix(in srgb,var(--accent) 70%,transparent);background:color-mix(in srgb,var(--accent) 12%,var(--glass))}
+.acct .stripe{position:absolute;left:0;top:0;bottom:0;width:4px}
+.acct .av{width:46px;height:46px;border-radius:50%;flex:none;object-fit:cover;background:#23262e;border:2px solid var(--line)}.acct.sel .av{border-color:var(--accent)}
+.acct .info{flex:1;min-width:0}.acct .info b{font-size:calc(14.5px*var(--fs));font-weight:700;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acct .info s{font-size:calc(12.5px*var(--fs));color:var(--sub);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.acct .acts{display:flex;gap:6px;opacity:0;transform:translateX(6px);transition:.16s}.acct:hover .acts{opacity:1;transform:none}
+.iconbtn{width:30px;height:30px;border-radius:6px;display:grid;place-items:center;background:var(--row);border:1px solid var(--line);color:var(--sub);cursor:pointer;transition:.13s}
+.iconbtn:hover{background:var(--rowHover);color:var(--text)}.iconbtn.danger:hover{color:var(--red);border-color:var(--red)}.iconbtn svg{width:15px;height:15px}
+.acct .avw{position:relative;flex:none}
+.acct .hdot{position:absolute;right:1px;bottom:1px;width:12px;height:12px;border-radius:50%;border:2px solid #20222a;background:var(--sub);transition:.2s}
+.acct .hdot.ok{background:var(--ok)}.acct .hdot.dead{background:var(--red)}.acct .hdot.checking{background:#f5b14a}.acct .hdot.unknown{background:var(--sub)}
+.acct .badges{display:flex;align-items:center;gap:6px;flex:none;margin-right:2px}
+.rbx{font-size:12px;font-weight:600;color:var(--sub);white-space:nowrap}
+.prem{font-size:10px;font-weight:700;color:var(--accent2);border:1px solid color-mix(in srgb,var(--accent2) 42%,transparent);padding:1px 6px;border-radius:5px;letter-spacing:.03em}
+.acct .ck{width:24px;height:24px;border-radius:50%;flex:none;border:2px solid var(--line);display:grid;place-items:center;transition:.18s}
+.acct.sel .ck{border:0;background:var(--grad);transform:scale(1.05)}.acct .ck svg{width:13px;height:13px;opacity:0;transition:.15s}.acct.sel .ck svg{opacity:1}
+.empty{margin:auto;text-align:center;color:var(--sub);line-height:1.6;padding:30px;animation:pop .4s both}.empty .pz{width:54px;height:54px;margin:0 auto 14px;opacity:.5}
+
+/* launch + console */
+.launch{margin:8px 20px;padding:13px 15px;border-radius:var(--radius);display:flex;align-items:flex-end;gap:11px;flex-wrap:wrap;background:var(--glass);border:1px solid var(--line);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur))}
+.lf{display:flex;flex-direction:column;gap:5px}.lf.g{flex:1;min-width:140px}
+.lf label{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--sub);padding-left:2px;white-space:nowrap}
+.inp{height:36px;background:var(--inpBg);border:1px solid var(--line);border-radius:var(--radius);color:var(--text);padding:0 12px;font-size:calc(13.5px*var(--fs));font-family:inherit;outline:0;transition:.15s;width:120px}
+.lf.g .inp{width:100%}.inp::placeholder{color:#5a5f69}
+select.inp{cursor:pointer}
+option,optgroup{background:#1c1e28;color:var(--text)}
+body.light option,body.light optgroup{background:#fff;color:#1b1d24}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.inp:focus-visible,.btn:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.inp:focus{border-color:color-mix(in srgb,var(--accent) 55%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.ddl{height:36px;background:var(--inpBg);border:1px solid var(--line);border-radius:var(--radius);color:var(--text);padding:0 12px;font-size:13.5px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;transition:.15s;width:100%}
+.ddl:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}.ddl .chev{color:var(--sub);transition:.2s;flex:none}.ddl.open .chev{transform:rotate(180deg)}.ddl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.console{height:118px;margin:0 20px 16px;padding:10px 14px;border-radius:var(--radius);overflow-y:auto;background:var(--glass);border:1px solid var(--line);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));font:12px/1.65 'Consolas','Cascadia Code',monospace;color:var(--sub);white-space:pre-wrap}
+.console .t{color:#5a5f69}
+
+/* settings + analytics shared */
+.spane{flex:1;overflow-y:auto;padding:18px 24px 24px}
+.sec{margin-bottom:24px}.cap{font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--sub);text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.cap:before{content:"";width:4px;height:11px;border-radius:2px;background:var(--accent)}
+.swrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.sc{width:30px;height:30px;border-radius:var(--radius);cursor:pointer;border:2px solid transparent;transition:.15s}.sc:hover{transform:scale(1.1)}.sc.on{border-color:#fff}
+.sc.custom{display:grid;place-items:center;background:var(--row);border:1px dashed var(--line);color:var(--sub);font-size:16px;overflow:hidden;position:relative}.sc.custom input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.srow{display:flex;align-items:center;min-height:42px;padding:0 4px}.srow .lbl{flex:1;font-size:calc(13.5px*var(--fs));font-weight:500}
+.tgl{width:42px;height:24px;border-radius:13px;background:var(--line);position:relative;cursor:pointer;transition:.22s}
+.tgl:after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.24s cubic-bezier(.5,1.6,.5,1)}
+.tgl.on{background:var(--grad)}.tgl.on:after{left:21px}
+.about{font-size:12.5px;color:var(--sub);line-height:1.7}.about b{color:var(--text)}
+.srow .sval{font-size:12.5px;color:var(--accentText);font-weight:600;width:50px;text-align:right;font-variant-numeric:tabular-nums}
+.srow .rng{margin-left:12px}
+.rng{-webkit-appearance:none;appearance:none;width:210px;height:6px;border-radius:3px;background:var(--line);outline:0;cursor:pointer}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.4),0 0 0 4px color-mix(in srgb,var(--accent) 28%,transparent)}
+.themechip{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:var(--radius);background:var(--row);border:1px solid var(--line);font-size:12.5px;font-weight:600;cursor:pointer;transition:.13s}
+.themechip:hover{background:var(--rowHover);border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.themechip .sw2{width:14px;height:14px;border-radius:4px;flex:none}
+.themechip .del{color:var(--sub);font-size:15px;line-height:1;margin-left:2px}.themechip .del:hover{color:var(--red)}
+.themechip .cpy,.themechip .gadd{color:var(--sub);font-size:14px;line-height:1;margin-left:2px}.themechip .cpy:hover,.themechip .gadd:hover{color:var(--accent)}
+/* analytics */
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+.stat{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));animation:pop .3s both}
+.stat:nth-child(2){animation-delay:.05s}.stat:nth-child(3){animation-delay:.1s}
+.stat .sv{font-size:26px;font-weight:800;color:var(--accentText);line-height:1.1}
+.stat .sv.sm{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .sl{font-size:11.5px;color:var(--sub);margin-top:6px;letter-spacing:.02em}
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar{display:flex;align-items:center;gap:12px}
+.bar .bl{width:180px;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+.bar .bt{flex:1;height:9px;background:var(--row);border-radius:5px;overflow:hidden}
+.bar .bt i{display:block;height:100%;width:0;background:var(--grad);border-radius:5px;transition:width .7s cubic-bezier(.3,1,.4,1)}
+.bar .bc{width:42px;text-align:right;font-size:12.5px;color:var(--sub);font-variant-numeric:tabular-nums}
+.muted{color:var(--sub);font-size:13px;padding:6px 2px}
+/* discover */
+.dsearch{display:flex;gap:9px;padding:14px 20px 8px}.dsearch .inp{flex:1}
+.dscroll{flex:1;overflow-y:auto;padding:6px 20px 16px}
+.gsection{margin-bottom:22px}.gsection .gh{font-size:13.5px;font-weight:700;margin:4px 2px 11px}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px}
+.gcard{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:.16s transform,.16s border-color;-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));animation:pop .25s both}
+.gcard:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.gcard img{width:100%;aspect-ratio:1/1;object-fit:cover;background:#23262e;display:block}
+.gcard .gi{padding:9px 10px}.gcard .gn{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcard .gp{font-size:11px;color:var(--sub);margin-top:3px;display:flex;align-items:center;gap:5px}.gcard .gp .live{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+
+/* resize zones */
+.rz{position:fixed;z-index:560}
+.rz.n{top:0;left:10px;right:10px;height:6px;cursor:ns-resize}.rz.s{bottom:0;left:10px;right:10px;height:6px;cursor:ns-resize}
+.rz.w{left:0;top:10px;bottom:10px;width:6px;cursor:ew-resize}.rz.e{right:0;top:10px;bottom:10px;width:6px;cursor:ew-resize}
+.rz.nw{top:0;left:0;width:11px;height:11px;cursor:nwse-resize}.rz.ne{top:0;right:0;width:11px;height:11px;cursor:nesw-resize}
+.rz.sw{bottom:0;left:0;width:11px;height:11px;cursor:nesw-resize}.rz.se{bottom:0;right:0;width:11px;height:11px;cursor:nwse-resize}
+
+/* fly / modal / toast */
+.fly{position:fixed;background:var(--glass2);border:1px solid var(--line);border-radius:var(--radius);padding:6px;z-index:300;box-shadow:0 20px 48px -14px rgba(0,0,0,.8);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px);opacity:0;transform:translateY(-6px);pointer-events:none;transition:.15s;max-height:280px;overflow-y:auto}
+.fly.show{opacity:1;transform:none;pointer-events:auto}.fly .opt{padding:8px 11px;border-radius:6px;font-size:12.5px;color:var(--sub);cursor:pointer;white-space:nowrap}
+.fly .opt:hover{background:var(--rowHover);color:var(--text)}.fly .opt.sel{color:var(--accent)}
+.scrim{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:grid;place-items:center;opacity:0;pointer-events:none;transition:.18s}
+.scrim.show{opacity:1;pointer-events:auto}
+.modal{width:min(440px,92vw);background:var(--glass2);border:1px solid var(--line);border-radius:11px;padding:20px;box-shadow:0 30px 70px -20px rgba(0,0,0,.85);-webkit-backdrop-filter:blur(26px);backdrop-filter:blur(26px);transform:scale(.96) translateY(8px);transition:.22s cubic-bezier(.3,1.3,.5,1)}
+.scrim.show .modal{transform:none}.modal h3{font-size:17px;font-weight:700;margin-bottom:4px}.modal p{font-size:12.5px;color:var(--sub);margin-bottom:14px;line-height:1.55}
+.modal .row{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}.modal textarea.inp{height:84px;width:100%;padding:9px 12px;resize:vertical;font:12.5px 'Consolas',monospace;line-height:1.5}
+.modal .inp{width:100%}.modal .actions{display:flex;justify-content:flex-end;gap:9px}
+.toasts{position:fixed;right:16px;bottom:16px;z-index:500;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.toast{min-width:210px;max-width:300px;background:var(--glass2);border:1px solid var(--line);border-radius:var(--radius);padding:11px 14px 11px 16px;position:relative;box-shadow:0 18px 40px -12px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);font-size:13px;animation:upIn .3s cubic-bezier(.3,1.3,.5,1) both;overflow:hidden}
+.toast:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent)}.toast.ok:before{background:var(--ok)}.toast.err:before{background:var(--red)}
+.busy{position:fixed;inset:0;z-index:350;display:none;place-items:center;background:rgba(8,9,12,.35)}.busy.show{display:grid}
+.spin{width:42px;height:42px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:rot .7s linear infinite}@keyframes rot{to{transform:rotate(360deg)}}
+/* update bar */
+.updbar{display:none;align-items:center;gap:12px;padding:9px 16px 9px 20px;border-bottom:1px solid var(--line);font-size:13px;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 24%,transparent),transparent)}
+.updbar.show{display:flex}.updbar .btn{height:28px;padding:0 12px}
+.updbar .updx{margin-left:auto;cursor:pointer;color:var(--sub);padding:2px 8px;font-size:14px}.updbar .updx:hover{color:var(--text)}
+/* running clients */
+.running{display:none;margin:0 20px 8px;padding:10px 14px;border-radius:var(--radius);background:var(--glass);border:1px solid var(--line);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur))}
+.running.show{display:block}
+.runhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.runhead #runTitle{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--sub)}
+.runhead .btn{height:28px;padding:0 12px}
+.runlist{display:flex;flex-wrap:wrap;gap:8px}
+.rchip{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 11px;border-radius:8px;background:var(--row);border:1px solid var(--line);font-size:12.5px}
+.rchip .rdot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);flex:none}
+.rchip b{font-weight:600}.rchip .rup{color:var(--sub);font-variant-numeric:tabular-nums}
+.rchip .rx{cursor:pointer;color:var(--sub);width:22px;height:22px;display:grid;place-items:center;border-radius:5px}
+.rchip .rx:hover{background:var(--rowHover);color:var(--red)}
+/* favorites + drag reorder */
+.acct.dragging{opacity:.4}
+.acct .iconbtn.star.on{color:#f5c451;border-color:color-mix(in srgb,#f5c451 45%,var(--line))}
+.acct .fstar{display:inline-flex;vertical-align:-2px;margin-right:5px;color:#f5c451}
+.acct .fstar svg{width:13px;height:13px}
+/* compact mode */
+body.compact .accts{gap:6px}
+body.compact .acct{padding:8px 13px;gap:11px}
+body.compact .acct .av{width:38px;height:38px}
+body.compact .acct .info b{font-size:13.5px}
+body.compact .toolbar{padding:10px 20px 4px}
+body.compact .launch{padding:10px 13px}
+/* launch history timeline */
+.timeline{display:flex;flex-direction:column;gap:2px}
+.tl{display:flex;align-items:center;gap:10px;padding:7px 2px;font-size:13px;border-bottom:1px solid var(--line)}
+.tl:last-child{border-bottom:0}
+.tl .tlt{width:72px;color:var(--sub);font-size:12px;flex:none}
+.tl .tla{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.tl .tlg{color:var(--sub);margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+</style></head>
+<body>
+<svg width="0" height="0"><defs><linearGradient id="tg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c6aff" stop-opacity=".5"/><stop offset="1" stop-color="#9d6bff" stop-opacity=".18"/></linearGradient></defs></svg>
+
+<div class="splash" id="splash">
+  <svg class="psvg" viewBox="0 0 230 170">
+    <line class="beam" x1="6" y1="86" x2="92" y2="90"/><polygon class="tri" points="118,28 168,128 68,128"/>
+    <line class="ray r1" x1="126" y1="90" x2="228" y2="50"/><line class="ray r2" x1="126" y1="90" x2="228" y2="66"/>
+    <line class="ray r3" x1="126" y1="90" x2="228" y2="82"/><line class="ray r4" x1="126" y1="90" x2="228" y2="98"/>
+    <line class="ray r5" x1="126" y1="90" x2="228" y2="114"/><line class="ray r6" x1="126" y1="90" x2="228" y2="130"/>
+  </svg><div class="swordmark">PRISM</div><div class="sbar"><i></i></div>
+</div>
+
+<div id="appwrap"><div class="appinner">
+  <aside class="side">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 100 100"><polygon points="52,16 84,84 18,84" fill="url(#tg)" stroke="#cdd0ff" stroke-width="3" stroke-linejoin="round"/>
+        <line x1="4" y1="50" x2="34" y2="52" stroke="#fff" stroke-width="4"/><line x1="55" y1="51" x2="98" y2="40" stroke="#ff5a5a" stroke-width="2.6"/>
+        <line x1="55" y1="51" x2="98" y2="52" stroke="#ffe14d" stroke-width="2.6"/><line x1="55" y1="51" x2="98" y2="64" stroke="#46e08a" stroke-width="2.6"/>
+        <line x1="55" y1="51" x2="98" y2="78" stroke="#4aa3ff" stroke-width="2.6"/><line x1="55" y1="51" x2="98" y2="90" stroke="#9d6bff" stroke-width="2.6"/></svg>
+      <b>Prism</b><span class="ver" id="sideVer">v1</span>
+    </div>
+    <div class="nav on" data-tab="accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/></svg><span data-i18n="nav.accounts">Accounts</span></div>
+    <div class="nav" data-tab="discover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.3 4.7-4.7 2.3 2.3-4.7z"/></svg><span data-i18n="nav.discover">Discover</span></div>
+    <div class="nav" data-tab="analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span data-i18n="nav.analytics">Analytics</span></div>
+    <div class="nav" data-tab="customize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="7" r="1.2"/><circle cx="17" cy="11" r="1.2"/><circle cx="8" cy="7.5" r="1.2"/><circle cx="6.5" cy="12.5" r="1.2"/><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-.9-.5-1.3-.3-.3-.5-.7-.5-1.2 0-1.1.9-2 2-2h2.3A4.7 4.7 0 0 0 22 10.7C22 6 17.5 2 12 2z"/></svg><span data-i18n="nav.customize">Customize</span></div>
+    <div class="nav" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.2A1.7 1.7 0 0 0 6 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 13H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 6L4.5 6a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.6V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4Z"/></svg><span data-i18n="nav.settings">Settings</span></div>
+    <div class="sspace"></div>
+    <div class="sidefoot">
+      <div class="statline off" id="statLine"><span class="dot"></span><span id="statTxt">Multi-instance: …</span></div>
+      <div class="cnt" id="cnt"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="updbar" id="updbar"><span id="updtext">A new version is available</span><button class="btn solid" id="updDl">Update &amp; restart</button><span class="updx" id="updDismiss">✕</span></div>
+    <div class="head">
+      <div><h1 id="headTitle">Accounts</h1><p id="headSub">Manage and launch your accounts</p></div>
+      <div class="hgrow"></div>
+      <div class="winbtns">
+        <div class="wbtn nodrag" id="wMin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        <div class="wbtn nodrag" id="wMax"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></div>
+        <div class="wbtn nodrag close" id="wClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></div>
+      </div>
+    </div>
+
+    <div class="panebox">
+      <div class="pane on" data-pane="accounts">
+        <div class="toolbar">
+          <button class="btn solid" id="bLogin" data-i18n="btn.login">✦ Log in with Roblox</button>
+          <button class="btn" id="bPaste" data-i18n="btn.paste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>Paste cookie</button>
+          <button class="btn" id="bImport" data-i18n="btn.import"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg>Import</button>
+          <div class="tgap"></div>
+          <input id="acctSearch" class="inp" data-i18n-ph="ph.search" placeholder="Search accounts…" style="width:190px"/>
+          <button class="btn" id="bRefresh" data-i18n="btn.refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>Refresh</button>
+          <button class="btn" id="bRelaunch" title="Reopen your last launched set" data-i18n="btn.relaunch">↻ Relaunch last</button>
+        </div>
+        <div class="accts" id="accounts"></div>
+        <div class="launch">
+          <div class="lf"><label data-i18n="lbl.placeId">PLACE ID</label><input id="placeId" class="inp" placeholder="606849621" inputmode="numeric"/></div>
+          <div class="lf g"><label data-i18n="lbl.server">SERVER · TRADE TOGETHER</label><div class="ddl" id="serverDd"><span id="serverLbl" data-i18n="srv.any">Any available server</span><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></div></div>
+          <button class="btn" id="bFind" data-i18n="btn.find">Find servers</button>
+          <div class="lf g"><label data-i18n="lbl.private">PRIVATE SERVER</label><input id="private" class="inp" data-i18n-ph="ph.private" placeholder="link or access code"/></div>
+          <button class="btn solid big" id="bLaunch" data-i18n="btn.launch">Launch ▶</button>
+        </div>
+        <div class="running" id="runPanel">
+          <div class="runhead"><span id="runTitle">RUNNING</span><div class="tgap"></div><button class="btn" id="bTile" title="Arrange the client windows in a grid">⊞ Tile</button><button class="btn danger" id="bCloseAll" data-i18n="run.closeall">Close all</button></div>
+          <div class="runlist" id="runList"></div>
+        </div>
+        <div class="console" id="console"></div>
+      </div>
+
+      <div class="pane" data-pane="discover">
+        <div class="dsearch"><input id="gameSearch" class="inp" data-i18n-ph="disc.searchph" placeholder="Search Roblox games…"/><button class="btn solid" id="bGameSearch" data-i18n="disc.search">Search</button><button class="btn" id="bDiscoverHome" data-i18n="disc.popular">Popular</button></div>
+        <div class="dscroll" id="discover"></div>
+      </div>
+      <div class="pane" data-pane="analytics">
+        <div class="spane">
+          <div class="statgrid">
+            <div class="stat"><div class="sv" id="stAccounts">0</div><div class="sl" data-i18n="stat.accounts">ACCOUNTS</div></div>
+            <div class="stat"><div class="sv" id="stLaunches">0</div><div class="sl" data-i18n="stat.launches">TOTAL LAUNCHES</div></div>
+            <div class="stat"><div class="sv sm" id="stTop">—</div><div class="sl" data-i18n="stat.top">MOST LAUNCHED GAME</div></div>
+          </div>
+          <div class="sec"><div class="cap" data-i18n="cap.topgames">Top games</div><div class="bars" id="topGames"></div></div>
+          <div class="sec"><div class="cap" data-i18n="cap.topaccts">Most active accounts</div><div class="bars" id="topAccts"></div></div>
+          <div class="sec"><div class="cap" data-i18n="cap.recent">Recent launches</div><div class="timeline" id="recentLaunches"></div></div>
+          <div class="sec"><div class="cap" data-i18n="cap.general">General</div><div class="about" id="genInfo"></div></div>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="customize">
+        <div class="spane">
+          <div class="sec"><div class="cap" data-i18n="cap.accent">Accent color</div>
+            <div class="swrow" id="swatches"></div>
+            <div class="srow" data-preview><div class="lbl" data-i18n="lbl.gradient">Gradient accent</div><div style="flex:1"></div><div class="tgl" id="swGradient"></div></div>
+            <div class="srow grad-only" data-preview><div class="lbl" data-i18n="lbl.accent2">Second color</div><div style="flex:1"></div><div class="swrow" id="swatches2" style="justify-content:flex-end"></div></div>
+            <div class="srow grad-only" data-preview><div class="lbl" data-i18n="lbl.gradangle">Gradient angle</div><div class="sval" id="vAngle">135°</div><input type="range" class="rng" id="rAngle" min="0" max="360" step="5" value="135"></div>
+          </div>
+          <div class="sec"><div class="cap" data-i18n="cap.appearance">Appearance</div>
+            <div class="srow" data-preview><div class="lbl" data-i18n="lbl.thememode">Theme mode</div><div style="flex:1"></div><div class="seg" id="modeSeg"><button type="button" data-mode="light" data-i18n="mode.light">Light</button><button type="button" data-mode="dark" class="on" data-i18n="mode.dark">Dark</button><button type="button" data-mode="auto" data-i18n="mode.auto">Auto</button></div></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.uiscale">UI scale</div><div class="sval" id="vScale">100%</div><input type="range" class="rng" id="rScale" min="70" max="140" step="5" value="100"></div>
+            <div class="srow" data-preview><div class="lbl" data-i18n="lbl.textsize">Text size</div><div class="sval" id="vText">100%</div><input type="range" class="rng" id="rText" min="85" max="130" step="5" value="100"></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.roundness">Roundness</div><div class="sval" id="vRadius">8</div><input type="range" class="rng" id="rRadius" min="0" max="22" step="1" value="8"></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.glass">Glass opacity</div><div class="sval" id="vGlass">62%</div><input type="range" class="rng" id="rGlass" min="30" max="98" step="1" value="62"></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.blur">Background blur</div><div class="sval" id="vBlur">14</div><input type="range" class="rng" id="rBlur" min="0" max="34" step="1" value="14"></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.font">Font</div><div style="flex:1"></div><select id="fontSel" class="inp" style="width:184px;cursor:pointer">
+              <option value="Plus Jakarta Sans">Plus Jakarta Sans</option><option value="Inter">Inter</option><option value="Space Grotesk">Space Grotesk</option><option value="Outfit">Outfit</option><option value="Segoe UI">System</option></select></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.motion">Reduce motion</div><div style="flex:1"></div><div class="tgl" id="swMotion"></div></div>
+            <div class="srow" data-preview><div class="lbl" data-i18n="lbl.compact">Compact mode</div><div style="flex:1"></div><div class="tgl" id="swCompact"></div></div>
+            <div class="srow" data-preview><div class="lbl" data-i18n="lbl.bg">Background image</div><div style="flex:1"></div><div style="display:flex;gap:8px"><button class="btn" id="bgPick" data-i18n="btn.choose">Choose…</button><button class="btn" id="bgUrl" data-i18n="btn.fromurl">From URL</button><button class="btn" id="bgClear" data-i18n="btn.clear">Clear</button></div></div>
+            <div class="srow" data-preview><div class="lbl" data-i18n="lbl.bgdim">Background dim</div><div class="sval" id="vDim">72%</div><input type="range" class="rng" id="rDim" min="0" max="92" step="2" value="72"></div>
+            <div class="srow" data-preview><div class="lbl" data-i18n="lbl.bgblur">Image blur</div><div class="sval" id="vImgBlur">0</div><input type="range" class="rng" id="rImgBlur" min="0" max="30" step="1" value="0"></div>
+          </div>
+          <div class="sec" data-preview><div class="cap" data-i18n="cap.launchdef">Launch defaults</div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.defplace">Default Place ID</div><div style="flex:1"></div><input id="defPlace" class="inp" placeholder="606849621" inputmode="numeric" style="width:184px"/></div>
+            <div class="srow" style="align-items:flex-start;min-height:auto;padding:10px 4px"><div class="lbl" data-i18n="lbl.favgames">Favorite games</div><div style="flex:1"></div><div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;max-width:62%"><div class="swrow" id="favGamesList" style="justify-content:flex-end"></div><button class="btn" id="addFavGame" data-i18n="btn.addgame">＋ Add game</button></div></div>
+          </div>
+          <div class="sec"><div class="cap" data-i18n="cap.themes">Themes</div>
+            <div class="swrow" id="themeList"></div>
+            <div style="display:flex;gap:9px;margin-top:10px;flex-wrap:wrap"><button class="btn" id="saveTheme" data-i18n="btn.savetheme">＋ Save current as theme</button><button class="btn" id="importTheme" data-i18n="btn.importcode">⬆ Import code</button><button class="btn danger" id="resetAppearance" data-i18n="btn.reset">Reset to defaults</button></div>
+          </div>
+          <div class="sec"><div class="cap" data-i18n="cap.gallery">Theme gallery</div><div class="swrow" id="galleryList"></div></div>
+        </div>
+      </div>
+      <div class="pane" data-pane="settings">
+        <div class="spane">
+          <div class="sec" data-preview><div class="cap" data-i18n="cap.language">Language</div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.language">Language</div><div style="flex:1"></div><select id="langSel" class="inp" style="width:184px;cursor:pointer">
+              <option value="en">English</option><option value="es">Español</option><option value="pt">Português</option></select></div>
+          </div>
+          <div class="sec"><div class="cap" data-i18n="cap.behavior">Behavior</div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.launcher">Roblox launcher<div style="font-size:11px;font-weight:400;color:var(--sub);margin-top:2px;max-width:330px" data-i18n="hint.launcher">Open clients through your bootstrapper (Bloxstrap, Fishstrap, Froststrap) or the official client. Multi-instance still works.</div></div><div style="flex:1"></div><select id="launcherSel" class="inp" style="width:184px;cursor:pointer">
+              <option value="auto">Auto (system default)</option>
+              <option value="roblox">Roblox (official)</option>
+              <option value="bloxstrap">Bloxstrap</option>
+              <option value="fishstrap">Fishstrap</option>
+              <option value="froststrap">Froststrap</option>
+            </select></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.warn">Warn before launching over</div><div class="sval" id="vWarn">5</div><input type="range" class="rng" id="rWarn" min="0" max="20" step="1" value="5"></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.autorejoin">Auto-rejoin (keep clients open)<div style="font-size:11px;font-weight:400;color:var(--sub);margin-top:2px;max-width:330px">Reopens a Roblox client you launch from here if it closes or crashes — handy for AFK grinding.</div></div><div class="tgl" id="swRejoin"></div></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.presence">Discord Rich Presence<div style="font-size:11px;font-weight:400;color:var(--sub);margin-top:2px;max-width:330px" data-i18n="hint.presence">Show "Playing Prism" on your Discord profile while the app is open, with Download & Join buttons.</div></div><div class="tgl on" id="swPresence"></div></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.mintray">Minimize to tray</div><div style="flex:1"></div><div class="tgl" id="swTrayMin"></div></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.closetray">Close to tray</div><div style="flex:1"></div><div class="tgl" id="swTrayClose"></div></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.startup">Start with Windows</div><div style="flex:1"></div><div class="tgl" id="swStartup"></div></div>
+          </div>
+          <div class="sec"><div class="cap" data-i18n="cap.about">About</div>
+            <div class="about"><b>Prism</b> · v<span id="aboutVer">1</span> — a Roblox account manager.<br>
+              Launch several accounts at once to grind, or drop your alts into the same server to trade.
+              Your <b>.ROBLOSECURITY</b> cookies are encrypted on this PC with Windows DPAPI and only sent to <b>roblox.com</b>.<br><br>
+              <b>Multi-instance:</b> open Prism <b>before</b> any Roblox window so extra clients can launch.</div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap"><button class="btn" id="btnCheckUpd" data-i18n="btn.checkupd">Check for updates</button><button class="btn" id="btnLogs" data-i18n="btn.openlogs">Open logs</button><span id="updStatus" class="muted" style="padding:0"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div></div>
+
+<div class="rz n"></div><div class="rz s"></div><div class="rz w"></div><div class="rz e"></div>
+<div class="rz nw"></div><div class="rz ne"></div><div class="rz sw"></div><div class="rz se"></div>
+<div class="scrim" id="scrim"><div class="modal" id="modal"></div></div>
+<div class="busy" id="busy"><div class="spin"></div></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+/* v1.1.0 staged release: hides [data-preview] features. Flip to false for a full build. */
+const MINIMAL=true; if(MINIMAL)document.body.classList.add('minimal');
+const wv=window.chrome&&window.chrome.webview;
+let accounts=[]; const selected=new Set(); let serverJobId=''; let servers=[];
+const pending=new Map(); let seq=0; let appReady=false,minDone=false;
+
+function call(action,payload={}){return new Promise((res,rej)=>{const id=++seq;pending.set(id,{res,rej});wv.postMessage(JSON.stringify({id,action,payload}));});}
+if(wv)wv.addEventListener('message',e=>{let m;try{m=JSON.parse(e.data)}catch{return}
+  if(m.event){onEvent(m);return}const p=pending.get(m.id);if(!p)return;pending.delete(m.id);m.ok?p.res(m.result):p.rej(new Error(m.error||'error'));});
+
+function onEvent(m){
+  if(m.event==='accounts'){accounts=m.accounts||[];for(const id of [...selected])if(!accounts.some(a=>a.userId===id))selected.delete(id);render();appReady=true;maybeHide();}
+  else if(m.event==='log')logLine(m.message);
+  else if(m.event==='status')setStatus(m.on,m.text);
+  else if(m.event==='busy')$('#busy').classList.toggle('show',!!m.on);
+  else if(m.event==='avatar'){const a=accounts.find(x=>x.userId===m.userId);if(a&&m.url)a.avatar=m.url;const i=document.querySelector(`img[data-uid="${m.userId}"]`);if(i&&m.url)i.src=m.url;}
+  else if(m.event==='toast')toast(m.message,m.kind);
+  else if(m.event==='winstate'){setMaxIcon(m.maximized);setTimeout(fit,30);}
+  else if(m.event==='restored'){document.body.classList.remove('minimizing');document.body.classList.remove('closing');closing=false;}
+  else if(m.event==='acctinfo'){const a=accounts.find(x=>x.userId===m.userId);if(a){a.health=m.health;a.robux=m.robux;a.premium=m.premium;}updateCardInfo(m.userId);}
+  else if(m.event==='settings')applySettings(m.settings||{});
+  else if(m.event==='launchers')applyLaunchers(m.items||[]);
+  else if(m.event==='appinfo'){if(m.version){const sv=$('#sideVer');if(sv)sv.textContent='v'+m.version;const av=$('#aboutVer');if(av)av.textContent=m.version;}}
+  else if(m.event==='update')showUpdate(m);
+  else if(m.event==='clients'){runClients=m.clients||[];runTiled=!!m.tiled;renderRun();}
+  else if(m.event==='background')setBg(m.uri);
+}
+function maybeHide(){if(appReady&&minDone){$('#splash').classList.add('gone');$('.appinner').classList.add('ready');}}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function setStatus(on,text){const l=$('#statLine');l.className='statline '+(on?'on':'off');$('#statTxt').textContent=text;}
+function logLine(msg){const c=$('#console');c.innerHTML+=`<span class="t">[${new Date().toLocaleTimeString()}]</span> ${esc(msg)}\n`;c.scrollTop=c.scrollHeight;}
+function toast(msg,kind){const t=document.createElement('div');t.className='toast '+(kind||'');t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='.35s';setTimeout(()=>t.remove(),360)},4000);}
+async function guard(fn){try{await fn()}catch(e){toast(e.message||String(e),'err')}}
+function hash(s){let h=0;for(const c of String(s||''))h=(h*31+c.charCodeAt(0))|0;return Math.abs(h);}
+function hue(seed){return`hsl(${(Math.abs(seed)*47)%360} 62% 64%)`;}
+function sub(a){let s=a.username?('@'+a.username):a.alias;if(a.userId)s+='  ·  id '+a.userId;if(a.note)s+='  ·  '+a.note;return s;}
+function healthClass(h){return h==='ok'?'ok':h==='dead'?'dead':h==='checking'?'checking':'unknown';}
+function badgesHtml(a){let h='';if(a.robux!=null)h+=`<span class="rbx" title="Robux">⏣ ${fmtN(a.robux)}</span>`;if(a.premium)h+='<span class="prem" title="Premium">P</span>';return h;}
+function updateCardInfo(uid){const a=accounts.find(x=>x.userId===uid);if(!a)return;const card=document.querySelector(`.acct[data-card="${uid}"]`);if(!card)return;
+  const dot=card.querySelector('.hdot');if(dot)dot.className='hdot '+healthClass(a.health);
+  const bd=card.querySelector('.badges');if(bd)bd.innerHTML=badgesHtml(a);}
+const ICON_EDIT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const ICON_TRASH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>';
+
+let favorites=new Set();let acctOrder=[];let acctQuery='';let dragId=null;
+const STAR='<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z"/></svg>';
+function fullOrder(){const pos=new Map(acctOrder.map((id,i)=>[id,i]));
+  let l=accounts.slice().sort((a,b)=>{const pa=pos.has(a.userId)?pos.get(a.userId):1e9,pb=pos.has(b.userId)?pos.get(b.userId):1e9;return pa-pb;});
+  return l.filter(a=>favorites.has(a.userId)).concat(l.filter(a=>!favorites.has(a.userId)));}
+function orderedAccounts(){let l=fullOrder();
+  if(acctQuery)l=l.filter(a=>((a.displayName||a.alias||'')+' '+(a.username||'')+' '+(a.note||'')).toLowerCase().includes(acctQuery));
+  return l;}
+function toggleFav(a){favorites.has(a.userId)?favorites.delete(a.userId):favorites.add(a.userId);persist('favorites',JSON.stringify([...favorites]));render();}
+function moveOrder(fromId,toId){let ids=fullOrder().map(a=>a.userId);const fi=ids.indexOf(fromId);if(fi<0)return;ids.splice(fi,1);let ti=ids.indexOf(toId);if(ti<0)ti=ids.length;ids.splice(ti,0,fromId);acctOrder=ids;persist('accountOrder',JSON.stringify(ids));render();}
+function render(){
+  const m=$('#accounts');
+  if(!accounts.length){m.innerHTML=`<div class="empty"><svg class="pz" viewBox="0 0 100 100"><polygon points="52,16 84,84 18,84" fill="url(#tg)" stroke="#cdd0ff" stroke-width="3" stroke-linejoin="round"/></svg>No accounts yet.<br>Click <b>Log in with Roblox</b> to sign in, or <b>Paste cookie</b>.</div>`;updateCount();return;}
+  const list=orderedAccounts();
+  if(!list.length){m.innerHTML='<div class="empty">No accounts match “'+esc(acctQuery)+'”.</div>';updateCount();return;}
+  m.innerHTML='';let i=0;
+  for(const a of list){
+    const sel=selected.has(a.userId);const fav=favorites.has(a.userId);
+    const c=document.createElement('div');c.className='acct'+(sel?' sel':'')+(fav?' fav':'');c.dataset.card=a.userId;c.style.animationDelay=(i++*0.03)+'s';c.draggable=true;
+    c.innerHTML=`<div class="stripe" style="background:${hue(a.userId||hash(a.alias))}"></div>
+      <div class="avw"><img class="av" draggable="false" data-uid="${a.userId}"${a.avatar?` src="${a.avatar}"`:''} alt=""/><span class="hdot ${healthClass(a.health)}"></span></div>
+      <div class="info"><b>${fav?'<span class="fstar">'+STAR+'</span>':''}${esc(a.displayName||a.alias)}</b><s>${esc(sub(a))}</s></div>
+      <div class="badges">${badgesHtml(a)}</div>
+      <div class="acts"><button class="iconbtn star${fav?' on':''}" title="${fav?'Unfavorite':'Favorite'}">${STAR}</button><button class="iconbtn edit" title="Rename">${ICON_EDIT}</button><button class="iconbtn trash danger" title="Remove">${ICON_TRASH}</button></div>
+      <div class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></div>`;
+    c.onclick=()=>{sel?selected.delete(a.userId):selected.add(a.userId);render();};
+    c.querySelector('.star').onclick=e=>{e.stopPropagation();toggleFav(a);};
+    c.querySelector('.edit').onclick=e=>{e.stopPropagation();renameAcct(a);};
+    c.querySelector('.trash').onclick=e=>{e.stopPropagation();removeAcct(a);};
+    c.ondragstart=e=>{dragId=a.userId;c.classList.add('dragging');e.dataTransfer.effectAllowed='move';};
+    c.ondragend=()=>c.classList.remove('dragging');
+    c.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect='move';};
+    c.ondrop=e=>{e.preventDefault();if(dragId!=null&&dragId!==a.userId)moveOrder(dragId,a.userId);};
+    m.appendChild(c);
+  }
+  updateCount();
+}
+function updateCount(){const n=selected.size;$('#cnt').textContent=accounts.length?`${accounts.length} account${accounts.length>1?'s':''}${n?` · ${n} selected`:''}`:'';}
+function selIds(){return[...selected];}
+
+/* i18n (UI chrome; dynamic toasts/console stay English for now) */
+let curLang='en';
+const I18N={
+ en:{'nav.accounts':'Accounts','nav.discover':'Discover','nav.analytics':'Analytics','nav.customize':'Customize','nav.settings':'Settings',
+  'sub.accounts':'Manage and launch your accounts','sub.discover':'Browse Roblox games — no launch needed','sub.analytics':'Usage at a glance','sub.customize':'Make Prism yours','sub.settings':'Preferences & info',
+  'btn.login':'✦ Log in with Roblox','btn.paste':'Paste cookie','btn.import':'Import','btn.refresh':'Refresh','btn.relaunch':'↻ Relaunch last','ph.search':'Search accounts…',
+  'lbl.placeId':'PLACE ID','lbl.server':'SERVER · TRADE TOGETHER','btn.find':'Find servers','lbl.private':'PRIVATE SERVER','btn.launch':'Launch ▶','ph.private':'link or access code',
+  'run.tile':'⊞ Tile','run.closeall':'Close all','srv.any':'Any available server','disc.searchph':'Search Roblox games…','disc.search':'Search','disc.popular':'Popular',
+  'stat.accounts':'ACCOUNTS','stat.launches':'TOTAL LAUNCHES','stat.top':'MOST LAUNCHED GAME','cap.topgames':'Top games','cap.topaccts':'Most active accounts','cap.recent':'Recent launches','cap.general':'General',
+  'cap.accent':'Accent color','cap.appearance':'Appearance','cap.themes':'Themes','cap.gallery':'Theme gallery','cap.behavior':'Behavior','cap.about':'About','cap.language':'Language',
+  'lbl.uiscale':'UI scale','lbl.roundness':'Roundness','lbl.glass':'Glass opacity','lbl.blur':'Background blur','lbl.font':'Font','lbl.motion':'Reduce motion','lbl.compact':'Compact mode','lbl.bg':'Background image',
+  'btn.choose':'Choose…','btn.fromurl':'From URL','btn.clear':'Clear','btn.savetheme':'＋ Save current as theme','btn.importcode':'⬆ Import code','btn.reset':'Reset to defaults',
+  'lbl.warn':'Warn before launching over','lbl.autorejoin':'Auto-rejoin (keep clients open)','lbl.mintray':'Minimize to tray','lbl.closetray':'Close to tray','lbl.startup':'Start with Windows','lbl.language':'Language',
+  'lbl.launcher':'Roblox launcher','hint.launcher':'Open clients through your bootstrapper (Bloxstrap, Fishstrap, Froststrap) or the official client. Multi-instance still works.','launcher.auto':'Auto (system default)','launcher.roblox':'Roblox (official)','launcher.notfound':'not found',
+  'lbl.presence':'Discord Rich Presence','hint.presence':'Show "Playing Prism" on your Discord profile while the app is open, with Download & Join buttons.',
+  'btn.checkupd':'Check for updates','btn.openlogs':'Open logs',
+  'lbl.gradient':'Gradient accent','lbl.accent2':'Second color','lbl.gradangle':'Gradient angle','lbl.thememode':'Theme mode','mode.light':'Light','mode.dark':'Dark','mode.auto':'Auto','lbl.textsize':'Text size','lbl.bgdim':'Background dim','lbl.bgblur':'Image blur','cap.launchdef':'Launch defaults','lbl.defplace':'Default Place ID','lbl.favgames':'Favorite games','btn.addgame':'＋ Add game'},
+ es:{'nav.accounts':'Cuentas','nav.discover':'Descubrir','nav.analytics':'Analíticas','nav.customize':'Personalizar','nav.settings':'Ajustes',
+  'sub.accounts':'Gestiona y abre tus cuentas','sub.discover':'Explora juegos de Roblox — sin abrir nada','sub.analytics':'Uso de un vistazo','sub.customize':'Haz Prism tuyo','sub.settings':'Preferencias e info',
+  'btn.login':'✦ Iniciar sesión con Roblox','btn.paste':'Pegar cookie','btn.import':'Importar','btn.refresh':'Actualizar','btn.relaunch':'↻ Reabrir última','ph.search':'Buscar cuentas…',
+  'lbl.placeId':'ID DE LUGAR','lbl.server':'SERVIDOR · COMERCIAR JUNTOS','btn.find':'Buscar servidores','lbl.private':'SERVIDOR PRIVADO','btn.launch':'Abrir ▶','ph.private':'enlace o código',
+  'run.tile':'⊞ Mosaico','run.closeall':'Cerrar todo','srv.any':'Cualquier servidor disponible','disc.searchph':'Buscar juegos de Roblox…','disc.search':'Buscar','disc.popular':'Populares',
+  'stat.accounts':'CUENTAS','stat.launches':'APERTURAS TOTALES','stat.top':'JUEGO MÁS ABIERTO','cap.topgames':'Juegos top','cap.topaccts':'Cuentas más activas','cap.recent':'Aperturas recientes','cap.general':'General',
+  'cap.accent':'Color de acento','cap.appearance':'Apariencia','cap.themes':'Temas','cap.gallery':'Galería de temas','cap.behavior':'Comportamiento','cap.about':'Acerca de','cap.language':'Idioma',
+  'lbl.uiscale':'Escala de interfaz','lbl.roundness':'Redondez','lbl.glass':'Opacidad de cristal','lbl.blur':'Desenfoque de fondo','lbl.font':'Fuente','lbl.motion':'Reducir movimiento','lbl.compact':'Modo compacto','lbl.bg':'Imagen de fondo',
+  'btn.choose':'Elegir…','btn.fromurl':'Desde URL','btn.clear':'Quitar','btn.savetheme':'＋ Guardar como tema','btn.importcode':'⬆ Importar código','btn.reset':'Restablecer',
+  'lbl.warn':'Avisar al abrir más de','lbl.autorejoin':'Auto-reconectar (mantener abiertos)','lbl.mintray':'Minimizar a la bandeja','lbl.closetray':'Cerrar a la bandeja','lbl.startup':'Iniciar con Windows','lbl.language':'Idioma',
+  'lbl.launcher':'Launcher de Roblox','hint.launcher':'Abre los clientes con tu bootstrapper (Bloxstrap, Fishstrap, Froststrap) o el cliente oficial. La multi-instancia sigue funcionando.','launcher.auto':'Automático (predeterminado)','launcher.roblox':'Roblox (oficial)','launcher.notfound':'no encontrado',
+  'lbl.presence':'Discord Rich Presence','hint.presence':'Muestra "Jugando a Prism" en tu perfil de Discord mientras la app está abierta, con botones de Descarga y Unirse.',
+  'btn.checkupd':'Buscar actualizaciones','btn.openlogs':'Abrir registros',
+  'lbl.gradient':'Acento degradado','lbl.accent2':'Segundo color','lbl.gradangle':'Ángulo del degradado','lbl.thememode':'Modo de tema','mode.light':'Claro','mode.dark':'Oscuro','mode.auto':'Auto','lbl.textsize':'Tamaño del texto','lbl.bgdim':'Oscurecer fondo','lbl.bgblur':'Desenfoque de imagen','cap.launchdef':'Valores de inicio','lbl.defplace':'ID de lugar predeterminado','lbl.favgames':'Juegos favoritos','btn.addgame':'＋ Añadir juego'},
+ pt:{'nav.accounts':'Contas','nav.discover':'Descobrir','nav.analytics':'Análises','nav.customize':'Personalizar','nav.settings':'Configurações',
+  'sub.accounts':'Gerencie e abra suas contas','sub.discover':'Explore jogos do Roblox — sem abrir nada','sub.analytics':'Uso num relance','sub.customize':'Deixe o Prism com a sua cara','sub.settings':'Preferências e info',
+  'btn.login':'✦ Entrar com Roblox','btn.paste':'Colar cookie','btn.import':'Importar','btn.refresh':'Atualizar','btn.relaunch':'↻ Reabrir última','ph.search':'Buscar contas…',
+  'lbl.placeId':'ID DO LUGAR','lbl.server':'SERVIDOR · NEGOCIAR JUNTOS','btn.find':'Buscar servidores','lbl.private':'SERVIDOR PRIVADO','btn.launch':'Abrir ▶','ph.private':'link ou código',
+  'run.tile':'⊞ Lado a lado','run.closeall':'Fechar tudo','srv.any':'Qualquer servidor disponível','disc.searchph':'Buscar jogos do Roblox…','disc.search':'Buscar','disc.popular':'Populares',
+  'stat.accounts':'CONTAS','stat.launches':'ABERTURAS TOTAIS','stat.top':'JOGO MAIS ABERTO','cap.topgames':'Jogos populares','cap.topaccts':'Contas mais ativas','cap.recent':'Aberturas recentes','cap.general':'Geral',
+  'cap.accent':'Cor de destaque','cap.appearance':'Aparência','cap.themes':'Temas','cap.gallery':'Galeria de temas','cap.behavior':'Comportamento','cap.about':'Sobre','cap.language':'Idioma',
+  'lbl.uiscale':'Escala da interface','lbl.roundness':'Arredondamento','lbl.glass':'Opacidade do vidro','lbl.blur':'Desfoque do fundo','lbl.font':'Fonte','lbl.motion':'Reduzir movimento','lbl.compact':'Modo compacto','lbl.bg':'Imagem de fundo',
+  'btn.choose':'Escolher…','btn.fromurl':'De URL','btn.clear':'Limpar','btn.savetheme':'＋ Salvar como tema','btn.importcode':'⬆ Importar código','btn.reset':'Redefinir',
+  'lbl.warn':'Avisar ao abrir mais de','lbl.autorejoin':'Auto-reabrir (manter abertos)','lbl.mintray':'Minimizar para a bandeja','lbl.closetray':'Fechar para a bandeja','lbl.startup':'Iniciar com o Windows','lbl.language':'Idioma',
+  'lbl.launcher':'Launcher do Roblox','hint.launcher':'Abra os clientes pelo seu bootstrapper (Bloxstrap, Fishstrap, Froststrap) ou pelo cliente oficial. O multi-instância continua funcionando.','launcher.auto':'Automático (padrão)','launcher.roblox':'Roblox (oficial)','launcher.notfound':'não encontrado',
+  'lbl.presence':'Discord Rich Presence','hint.presence':'Mostra "Jogando Prism" no seu perfil do Discord enquanto o app está aberto, com botões de Download e Entrar.',
+  'btn.checkupd':'Procurar atualizações','btn.openlogs':'Abrir registros',
+  'lbl.gradient':'Destaque em gradiente','lbl.accent2':'Segunda cor','lbl.gradangle':'Ângulo do gradiente','lbl.thememode':'Modo do tema','mode.light':'Claro','mode.dark':'Escuro','mode.auto':'Auto','lbl.textsize':'Tamanho do texto','lbl.bgdim':'Escurecer fundo','lbl.bgblur':'Desfoque da imagem','cap.launchdef':'Padrões de abertura','lbl.defplace':'ID de lugar padrão','lbl.favgames':'Jogos favoritos','btn.addgame':'＋ Adicionar jogo'}
+};
+function tr(k){const L=I18N[curLang];return (L&&L[k]!=null)?L[k]:(I18N.en[k]!=null?I18N.en[k]:k);}
+function setText(el,txt){for(const n of el.childNodes){if(n.nodeType===3&&n.textContent.trim()){n.textContent=txt;return;}}el.appendChild(document.createTextNode(txt));}
+function applyLang(lang){curLang=lang;
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const v=tr(el.dataset.i18n);if(v!=null)setText(el,v);});
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{const v=tr(el.dataset.i18nPh);if(v!=null)el.placeholder=v;});
+  const act=document.querySelector('.nav.on');if(act){$('#headTitle').textContent=tr('nav.'+act.dataset.tab);$('#headSub').textContent=tr('sub.'+act.dataset.tab);}
+  if(typeof renderLauncherOpts==='function')renderLauncherOpts();}
+
+/* nav */
+$$('.nav').forEach(n=>n.onclick=()=>{const t=n.dataset.tab;$$('.nav').forEach(x=>x.classList.toggle('on',x===n));$$('.pane').forEach(p=>p.classList.toggle('on',p.dataset.pane===t));
+  $('#headTitle').textContent=tr('nav.'+t);
+  $('#headSub').textContent=tr('sub.'+t);
+  if(t==='analytics')loadStats();if(t==='discover'&&!discoverLoaded)loadDiscover();presencePing();});
+
+/* discover */
+let discoverLoaded=false;
+function fmtN(n){return n>=999950?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n);}
+function gameCard(g){const c=document.createElement('div');c.className='gcard';
+  c.innerHTML=`<img${g.icon?` src="${g.icon}"`:''} alt=""/><div class="gi"><div class="gn">${esc(g.name)}</div><div class="gp"><span class="live"></span>${fmtN(g.playing)} playing</div></div>`;
+  c.onclick=()=>{$('#placeId').value=g.placeId;$('.nav[data-tab="accounts"]').click();toast('Place set: '+g.name,'ok');};return c;}
+function renderSections(secs){const el=$('#discover');el.innerHTML='';
+  if(!secs.length||secs.every(s=>!s.games.length)){el.innerHTML='<div class="muted" style="padding:18px">No games found.</div>';return;}
+  for(const s of secs){if(!s.games.length)continue;const sec=document.createElement('div');sec.className='gsection';
+    const h=document.createElement('div');h.className='gh';h.textContent=s.title;sec.appendChild(h);
+    const grid=document.createElement('div');grid.className='ggrid';for(const g of s.games)grid.appendChild(gameCard(g));sec.appendChild(grid);el.appendChild(sec);}}
+async function loadDiscover(){const el=$('#discover');el.innerHTML='<div class="muted" style="padding:18px">Loading popular games…</div>';
+  try{const r=await call('discover');renderSections(r.sections||[]);discoverLoaded=true;}catch(e){el.innerHTML='<div class="muted" style="padding:18px">Could not load games.</div>';}}
+async function doGameSearch(){const q=$('#gameSearch').value.trim();if(!q){loadDiscover();return;}
+  const el=$('#discover');el.innerHTML='<div class="muted" style="padding:18px">Searching…</div>';
+  try{const r=await call('searchGames',{query:q});renderSections([{title:'Results for "'+q+'"',games:r.games||[]}]);}catch(e){el.innerHTML='<div class="muted" style="padding:18px">Search failed.</div>';}}
+$('#bGameSearch').onclick=doGameSearch;$('#gameSearch').addEventListener('keydown',e=>{if(e.key==='Enter')doGameSearch();});
+$('#bDiscoverHome').onclick=()=>{$('#gameSearch').value='';loadDiscover();};
+
+/* analytics */
+async function loadStats(){try{const s=await call('getStats');
+  $('#stAccounts').textContent=s.accounts;$('#stLaunches').textContent=s.totalLaunches;
+  $('#stTop').textContent=(s.topGames&&s.topGames[0])?s.topGames[0].name:'—';
+  bars('#topGames',(s.topGames||[]).map(g=>({label:g.name,count:g.count})));
+  bars('#topAccts',(s.topAccounts||[]).map(a=>({label:a.name,count:a.count})));
+  renderRecent(s.recent||[],s.historyGap);
+  $('#genInfo').innerHTML=`Multi-instance: <b>${s.multiInstance?'ON':'OFF'}</b><br>Saved accounts: <b>${s.accounts}</b><br>Total launches: <b>${s.totalLaunches}</b>`;
+}catch(e){}}
+function bars(sel,items){const el=$(sel);if(!items.length){el.innerHTML='<div class="muted">No data yet — launch some games and check back.</div>';return;}
+  const max=Math.max(...items.map(i=>i.count),1);el.innerHTML='';
+  for(const it of items){const r=document.createElement('div');r.className='bar';r.innerHTML=`<span class="bl">${esc(it.label)}</span><span class="bt"><i></i></span><span class="bc">${it.count}</span>`;el.appendChild(r);
+    requestAnimationFrame(()=>{r.querySelector('i').style.width=Math.round(it.count/max*100)+'%';});}}
+function renderRecent(items,historyGap){const el=$('#recentLaunches');if(!el)return;
+  if(!items.length){el.innerHTML='<div class="muted">'+(historyGap?'Per-launch history started in this version — earlier launches aren’t shown here, but new ones will appear.':'No launches yet — launch some and check back.')+'</div>';return;}
+  el.innerHTML='';for(const it of items){const r=document.createElement('div');r.className='tl';
+    r.innerHTML=`<span class="tlt">${esc(it.ago)}</span><span class="tla">${esc(it.account)}</span><span class="tlg">${esc(it.game)}</span>`;el.appendChild(r);}}
+
+/* window controls + close */
+function setMaxIcon(max){$('#wMax').innerHTML=max?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="4" width="12" height="12" rx="2"/><path d="M4 8v10a2 2 0 0 0 2 2h10"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';}
+$('#wMin').onclick=()=>{document.body.classList.add('minimizing');setTimeout(()=>call('window',{op:'minimize'}),230);};
+$('#wMax').onclick=()=>call('window',{op:'maximize'});
+let closing=false;
+$('#wClose').onclick=()=>{if(closing)return;closing=true;document.body.classList.add('closing');setTimeout(()=>call('window',{op:'close'}),520);};
+function dragStart(e){if(e.button===0&&!e.target.closest('.nodrag'))call('window',{op:'drag'});}
+$('.head').addEventListener('mousedown',dragStart);
+$('.head').addEventListener('dblclick',e=>{if(!e.target.closest('.nodrag'))call('window',{op:'maximize'});});
+$('.brand').addEventListener('mousedown',e=>{if(e.button===0)call('window',{op:'drag'});});
+$$('.rz').forEach(h=>h.addEventListener('mousedown',e=>{if(e.button!==0)return;e.preventDefault();call('window',{op:'resize',dir:[...h.classList].find(c=>c!=='rz')});}));
+
+/* server dropdown */
+const fly=document.createElement('div');fly.className='fly';document.body.appendChild(fly);
+function buildFly(){fly.innerHTML='';const add=(label,val)=>{const o=document.createElement('div');o.className='opt'+(val===serverJobId?' sel':'');o.textContent=label;o.onclick=ev=>{ev.stopPropagation();serverJobId=val;$('#serverLbl').textContent=label;fly.classList.remove('show');$('#serverDd').classList.remove('open');};fly.appendChild(o);};
+  add(tr('srv.any'),'');for(const s of servers)add(`${s.playing}/${s.max} players  (${s.free} free)`,s.jobId);}
+$('#serverDd').onclick=e=>{e.stopPropagation();const open=$('#serverDd').classList.contains('open');$$('.fly.show').forEach(f=>f.classList.remove('show'));if(open){$('#serverDd').classList.remove('open');return;}
+  buildFly();const r=$('#serverDd').getBoundingClientRect();fly.style.width=r.width+'px';fly.style.left=r.left+'px';fly.classList.add('show');let top=r.bottom+6;if(top+fly.offsetHeight>innerHeight-8)top=r.top-fly.offsetHeight-6;fly.style.top=top+'px';$('#serverDd').classList.add('open');};
+window.addEventListener('click',()=>{fly.classList.remove('show');$('#serverDd').classList.remove('open');});
+
+/* modal */
+function modal(html){return new Promise(resolve=>{const sc=$('#scrim');$('#modal').innerHTML=html;sc.classList.add('show');
+  function close(v){sc.classList.remove('show');document.removeEventListener('keydown',key);resolve(v);}function key(e){if(e.key==='Escape')close(null);}
+  document.addEventListener('keydown',key);sc.onclick=e=>{if(e.target===sc)close(null);};$('#modal')._close=close;});}
+function closeModal(v){$('#modal')._close&&$('#modal')._close(v);}
+function renameAcct(a){modal(`<h3>Rename account</h3><div class="row"><input id="mAlias" class="inp" value="${esc(a.alias)}"/></div><div class="actions"><button class="btn" onclick="closeModal(null)">Cancel</button><button class="btn solid" id="mOk">Save</button></div>`);
+  setTimeout(()=>{const i=$('#mAlias');i.focus();i.select();},60);$('#mOk').onclick=()=>guard(async()=>{const v=$('#mAlias').value.trim();if(!v)return;closeModal(true);await call('rename',{userId:a.userId,alias:v});});}
+function removeAcct(a){modal(`<h3>Remove account?</h3><p>${esc(a.displayName||a.alias)}</p><div class="actions"><button class="btn" onclick="closeModal(null)">Cancel</button><button class="btn danger" id="mDel">Remove</button></div>`);
+  $('#mDel').onclick=()=>guard(async()=>{closeModal(true);await call('remove',{userIds:[a.userId]});});}
+
+/* actions */
+$('#bLogin').onclick=()=>guard(async()=>{const b=$('#bLogin');b.disabled=true;try{await call('loginRoblox');}finally{b.disabled=false;}});
+$('#bRefresh').onclick=()=>guard(async()=>{await call('refresh',{userIds:selIds()});});
+$('#bRelaunch').onclick=()=>guard(async()=>{await call('relaunchLast');});
+$('#bPaste').onclick=()=>{modal(`<h3>Paste cookie</h3><p>Paste the account's full <b>.ROBLOSECURITY</b> value (including the "_|WARNING…" part). It's encrypted on your PC and only sent to Roblox.</p>
+  <div class="row"><input id="mAlias" class="inp" placeholder="Alias (optional)"/><textarea id="mCookie" class="inp" placeholder=".ROBLOSECURITY cookie"></textarea><input id="mNote" class="inp" placeholder="Note (optional)"/></div>
+  <div class="actions"><button class="btn" onclick="closeModal(null)">Cancel</button><button class="btn solid" id="mAdd">Add account</button></div>`);
+  $('#mAdd').onclick=()=>guard(async()=>{const cookie=$('#mCookie').value.trim();if(!cookie){toast('Paste the cookie first','err');return;}closeModal(true);await call('addCookie',{alias:$('#mAlias').value,cookie,note:$('#mNote').value});});};
+function parseImport(text){const out=[];for(let raw of (text||'').split(/\r?\n/)){let line=raw.trim();if(!line)continue;
+  line=line.replace(/\.?ROBLOSECURITY\s*=\s*/i,'');let alias='',cookie=line;const wi=line.indexOf('_|WARNING');
+  if(wi>0){alias=line.slice(0,wi).replace(/[\s,:|\t]+$/,'').trim();cookie=line.slice(wi).trim();}
+  else if(wi<0){const m=line.match(/^([^,\t|]{1,40})[,\t|]\s*(.{40,})$/);if(m){alias=m[1].trim();cookie=m[2].trim();}}
+  if(cookie)out.push({alias,cookie});}return out;}
+$('#bImport').onclick=()=>{modal(`<h3>Import accounts</h3><p>Paste one cookie per line — optionally <b>alias, cookie</b>. Or load a .txt / .csv file. Each is validated &amp; encrypted.</p>
+  <div class="row"><textarea id="mBulk" class="inp" style="height:150px" placeholder="_|WARNING:-DO-NOT-SHARE...&#10;TradeMule, _|WARNING:-DO-NOT-SHARE..."></textarea>
+  <label class="btn" style="align-self:flex-start;cursor:pointer">Choose file…<input type="file" id="mFile" accept=".txt,.csv,text/plain" style="display:none"></label></div>
+  <div class="actions"><button class="btn" onclick="closeModal(null)">Cancel</button><button class="btn solid" id="mImp">Import</button></div>`);
+  $('#mFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const t=$('#mBulk');t.value=(t.value?t.value+'\n':'')+rd.result;};rd.readAsText(f);};
+  $('#mImp').onclick=()=>guard(async()=>{const entries=parseImport($('#mBulk').value);if(!entries.length){toast('Nothing to import — paste cookies first','err');return;}closeModal(true);await call('addCookiesBulk',{entries});});};
+$('#bFind').onclick=()=>guard(async()=>{const placeId=($('#placeId').value||'').trim();if(!/^\d+$/.test(placeId)){toast('Enter a numeric Place ID first','err');return;}
+  const r=await call('findServers',{placeId:Number(placeId)});servers=r.servers||[];serverJobId='';$('#serverLbl').textContent=tr('srv.any');toast(servers.length?`Found ${servers.length} server(s)`:'No public servers found',servers.length?'ok':'');});
+['#placeId','#private'].forEach(s=>{const el=$(s);if(el)el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#bLaunch').click();}});});
+$('#bLaunch').onclick=()=>guard(async()=>{if(!selected.size){toast('Tick at least one account to launch','err');return;}
+  if(warnN>0&&selected.size>warnN){const ok=await confirmModal('Launch '+selected.size+' accounts?',"You're about to open "+selected.size+" Roblox clients at once.",'Launch');if(!ok)return;}
+  const placeId=($('#placeId').value||'').trim();await call('launch',{userIds:selIds(),placeId:placeId?Number(placeId):0,jobId:serverJobId||null,private:$('#private').value||''});});
+
+/* settings */
+const lighten=(h,a)=>{const n=parseInt(h.slice(1),16),r=n>>16&255,g=n>>8&255,b=n&255,m=v=>Math.round(v+(255-v)*a);return'#'+[m(r),m(g),m(b)].map(v=>v.toString(16).padStart(2,'0')).join('')};
+const darken=(h,a)=>{const n=parseInt(h.slice(1),16),m=v=>Math.round(v*(1-a));return'#'+[m(n>>16&255),m(n>>8&255),m(n&255)].map(v=>v.toString(16).padStart(2,'0')).join('')};
+const _lum=(h)=>{try{const n=parseInt(h.replace('#','').slice(0,6),16),c=[n>>16&255,n>>8&255,n&255].map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*c[0]+.7152*c[1]+.0722*c[2];}catch(e){return .5;}};
+// Keep text readable on any accent: white/dark text ON the accent, and a contrast-safe accent for accent-colored TEXT.
+function applyContrast(){const r=document.documentElement,a=(getComputedStyle(r).getPropertyValue('--accent').trim())||'#7c6aff';
+  r.style.setProperty('--onAccent', _lum(a)>0.6?'#15171c':'#ffffff');
+  const lightBg=document.body.classList.contains('light');let t=a,i=0;
+  if(lightBg){while(_lum(t)>0.45&&i++<12)t=darken(t,0.12);}else{while(_lum(t)<0.30&&i++<12)t=lighten(t,0.12);}
+  r.style.setProperty('--accentText',t);}
+const presets=['#7c6aff','#4ade9e','#ff6eb2','#ff9248','#5ab0ff','#22d3ee','#e1e1eb'];
+let gradOn=false;
+function setAccent(c,silent){const r=document.documentElement;r.style.setProperty('--accent',c);
+  if(!gradOn)r.style.setProperty('--accent2',lighten(c,.16));
+  $$('#swatches .sc').forEach(x=>x.classList.toggle('on',x.dataset.c&&x.dataset.c.toLowerCase()===c.toLowerCase()));
+  const isP=presets.some(p=>p.toLowerCase()===c.toLowerCase());const ci=cu&&cu.querySelector('input');if(ci){ci.value=c;cu.classList.toggle('on',!isP);}
+  applyContrast();
+  if(!silent)persist('accent',c);}
+function setAccent2(c,silent){document.documentElement.style.setProperty('--accent2',c);
+  $$('#swatches2 .sc').forEach(x=>x.classList.toggle('on',x.dataset.c&&x.dataset.c.toLowerCase()===c.toLowerCase()));
+  const ci=cu2&&cu2.querySelector('input');if(ci){ci.value=c;cu2.classList.toggle('on',!presets.some(p=>p.toLowerCase()===c.toLowerCase()));}
+  applyContrast();
+  if(!silent)persist('accent2',c);}
+const sw=$('#swatches');
+presets.forEach(c=>{const d=document.createElement('div');d.className='sc';d.dataset.c=c;d.style.background=c;d.onclick=()=>setAccent(c);sw.appendChild(d);});
+const cu=document.createElement('div');cu.className='sc custom';cu.innerHTML='+<input type="color" value="#7c6aff">';cu.querySelector('input').oninput=e=>setAccent(e.target.value);sw.appendChild(cu);
+const sw2=$('#swatches2');let cu2=null;
+if(sw2){presets.forEach(c=>{const d=document.createElement('div');d.className='sc';d.dataset.c=c;d.style.background=c;d.onclick=()=>setAccent2(c);sw2.appendChild(d);});
+  cu2=document.createElement('div');cu2.className='sc custom';cu2.innerHTML='+<input type="color" value="#9d6bff">';cu2.querySelector('input').oninput=e=>setAccent2(e.target.value);sw2.appendChild(cu2);}
+function setGradient(on,silent){gradOn=on;document.body.classList.toggle('gradon',on);const t=$('#swGradient');if(t)t.classList.toggle('on',on);
+  if(!on){const c=(getComputedStyle(document.documentElement).getPropertyValue('--accent').trim())||'#7c6aff';document.documentElement.style.setProperty('--accent2',lighten(c,.16));}
+  if(!silent)persist('accentGradient',on?'1':'0');}
+{const g=$('#swGradient');if(g)g.onclick=()=>setGradient(!gradOn);}
+const rAngle=$('#rAngle');if(rAngle){rAngle.oninput=()=>{document.documentElement.style.setProperty('--gradAngle',rAngle.value+'deg');$('#vAngle').textContent=rAngle.value+'°';};rAngle.onchange=()=>persist('gradAngle',rAngle.value);}
+const modeSeg=$('#modeSeg');let themeMode='dark';let _mql=null;
+function applyMode(m){document.body.classList.toggle('light', m==='light' || (m==='auto' && window.matchMedia('(prefers-color-scheme: light)').matches));applyContrast();}
+function setMode(m,silent){themeMode=m;if(modeSeg)$$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  applyMode(m);
+  if(_mql){_mql.onchange=null;_mql=null;}
+  if(m==='auto'){_mql=window.matchMedia('(prefers-color-scheme: light)');_mql.onchange=()=>applyMode('auto');}
+  if(!silent)persist('themeMode',m);}
+if(modeSeg)$$('#modeSeg button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+const rText=$('#rText');if(rText){rText.oninput=()=>{document.documentElement.style.setProperty('--fs',(rText.value/100).toFixed(2));$('#vText').textContent=rText.value+'%';if(typeof fit==='function')fit();};rText.onchange=()=>persist('textSize',(rText.value/100).toFixed(2));}
+const rDim=$('#rDim');if(rDim){rDim.oninput=()=>{document.documentElement.style.setProperty('--bgDim',(rDim.value/100).toFixed(2));$('#vDim').textContent=rDim.value+'%';};rDim.onchange=()=>persist('bgDim',(rDim.value/100).toFixed(2));}
+const rImgBlur=$('#rImgBlur');if(rImgBlur){rImgBlur.oninput=()=>{document.documentElement.style.setProperty('--bgImgBlur',rImgBlur.value+'px');$('#vImgBlur').textContent=rImgBlur.value;};rImgBlur.onchange=()=>persist('bgImgBlur',rImgBlur.value);}
+$('#swMotion').onclick=()=>{const on=$('#swMotion').classList.toggle('on');document.body.classList.toggle('no-anim',on);persist('reduceMotion',on?'1':'0');};
+let favGames=[];
+function renderFavGames(){const el=$('#favGamesList');if(!el)return;el.innerHTML='';
+  if(!favGames.length){el.innerHTML='<div class="muted" style="padding:0">No favorites yet.</div>';return;}
+  favGames.forEach((g,i)=>{const c=document.createElement('div');c.className='themechip';
+    c.innerHTML=`${esc(g.name||('Place '+g.placeId))}<span class="del" title="Remove">×</span>`;
+    c.onclick=e=>{if(e.target.classList.contains('del')){favGames.splice(i,1);persist('favGames',JSON.stringify(favGames));renderFavGames();return;}
+      const pl=$('#placeId');if(pl)pl.value=g.placeId;const nav=document.querySelector('.nav[data-tab="accounts"]');if(nav)nav.click();toast('Loaded: '+(g.name||g.placeId),'ok');};
+    el.appendChild(c);});}
+{const dp=$('#defPlace');if(dp)dp.onchange=()=>{const v=dp.value.trim();if(v&&!/^\d+$/.test(v)){toast('Place ID must be numeric','err');return;}persist('defaultPlaceId',v);};}
+{const a=$('#addFavGame');if(a)a.onclick=()=>{modal(`<h3>Add favorite game</h3><div class="row"><input id="mFgName" class="inp" placeholder="Game name (label)"/></div><div class="row"><input id="mFgId" class="inp" placeholder="Place ID (numbers)" inputmode="numeric"/></div><div class="actions"><button class="btn" onclick="closeModal(null)">Cancel</button><button class="btn solid" id="mFgAdd">Add</button></div>`);
+  setTimeout(()=>{const x=$('#mFgName');if(x)x.focus();},60);
+  $('#mFgAdd').onclick=()=>{const name=$('#mFgName').value.trim();const pid=$('#mFgId').value.trim();if(!/^\d+$/.test(pid)){toast('Enter a numeric Place ID','err');return;}closeModal(true);favGames.push({name:name||('Place '+pid),placeId:pid});persist('favGames',JSON.stringify(favGames));renderFavGames();};};}
+renderFavGames();
+
+/* appearance sliders + custom themes */
+const root=document.documentElement;let uiScale=1;let themes=[];
+function persist(k,v){call('setSetting',{key:k,value:String(v)}).catch(()=>{});}
+const rScale=$('#rScale'),rRadius=$('#rRadius'),rGlass=$('#rGlass'),rBlur=$('#rBlur');
+rScale.oninput=()=>{uiScale=rScale.value/100;$('#vScale').textContent=rScale.value+'%';fit();};rScale.onchange=()=>persist('uiScale',(rScale.value/100).toFixed(2));
+rRadius.oninput=()=>{root.style.setProperty('--radius',rRadius.value+'px');$('#vRadius').textContent=rRadius.value;};rRadius.onchange=()=>persist('radius',rRadius.value);
+rGlass.oninput=()=>{root.style.setProperty('--glassA',rGlass.value/100);$('#vGlass').textContent=rGlass.value+'%';};rGlass.onchange=()=>persist('glassA',(rGlass.value/100).toFixed(2));
+rBlur.oninput=()=>{root.style.setProperty('--blur',rBlur.value+'px');$('#vBlur').textContent=rBlur.value;};rBlur.onchange=()=>persist('blur',rBlur.value);
+const fontSel=$('#fontSel');
+function setFont(f){root.style.setProperty('--font',`'${f}','Segoe UI',system-ui,sans-serif`);if(fontSel)fontSel.value=f;}
+fontSel.onchange=()=>{setFont(fontSel.value);persist('font',fontSel.value);};
+function applySettings(s){
+  if(s.accent)setAccent(s.accent,true);
+  if(s.font)setFont(s.font);
+  if(s.radius!=null){rRadius.value=s.radius;root.style.setProperty('--radius',s.radius+'px');$('#vRadius').textContent=s.radius;}
+  if(s.glassA!=null){const g=Math.round(parseFloat(s.glassA)*100);rGlass.value=g;root.style.setProperty('--glassA',s.glassA);$('#vGlass').textContent=g+'%';}
+  if(s.blur!=null){rBlur.value=s.blur;root.style.setProperty('--blur',s.blur+'px');$('#vBlur').textContent=s.blur;}
+  if(s.uiScale!=null){uiScale=parseFloat(s.uiScale);rScale.value=Math.round(uiScale*100);$('#vScale').textContent=Math.round(uiScale*100)+'%';fit();}
+  if(s.reduceMotion!=null){const rm=s.reduceMotion==='1';$('#swMotion').classList.toggle('on',rm);document.body.classList.toggle('no-anim',rm);}
+  if(s.warnN!=null){warnN=parseInt(s.warnN)||0;rWarn.value=warnN;$('#vWarn').textContent=warnN===0?'Off':warnN;}
+  if(s.autoRejoin!=null)$('#swRejoin').classList.toggle('on',s.autoRejoin==='1');
+  if(s.richPresence!=null)$('#swPresence').classList.toggle('on',s.richPresence!=='0');
+  if(s.launcher){const e=$('#launcherSel');if(e)e.value=s.launcher;}
+  if(s.minimizeToTray!=null)$('#swTrayMin').classList.toggle('on',s.minimizeToTray==='1');
+  if(s.closeToTray!=null)$('#swTrayClose').classList.toggle('on',s.closeToTray==='1');
+  if(s.startWithWindows!=null)$('#swStartup').classList.toggle('on',s.startWithWindows==='1');
+  if(s.themes){try{themes=JSON.parse(s.themes)||[];}catch{themes=[];}}
+  if(s.favorites){try{favorites=new Set(JSON.parse(s.favorites));}catch{}}
+  if(s.accountOrder){try{acctOrder=JSON.parse(s.accountOrder)||[];}catch{}}
+  if(s.compact!=null){const on=s.compact==='1';document.body.classList.toggle('compact',on);const t=$('#swCompact');if(t)t.classList.toggle('on',on);}
+  if(s.lang&&I18N[s.lang]){const ls=$('#langSel');if(ls)ls.value=s.lang;applyLang(s.lang);}
+  if(!MINIMAL && s.themeMode)setMode(s.themeMode,true);  // theming hidden -> stay dark until v1.2
+  if(s.textSize!=null){const t=parseFloat(s.textSize)||1;root.style.setProperty('--fs',t.toFixed(2));const r=$('#rText');if(r)r.value=Math.round(t*100);const v=$('#vText');if(v)v.textContent=Math.round(t*100)+'%';fit();}
+  if(s.gradAngle!=null){root.style.setProperty('--gradAngle',s.gradAngle+'deg');const r=$('#rAngle');if(r)r.value=s.gradAngle;const v=$('#vAngle');if(v)v.textContent=s.gradAngle+'°';}
+  if(s.accent2)setAccent2(s.accent2,true);
+  if(s.accentGradient!=null)setGradient(s.accentGradient==='1',true);
+  if(s.bgDim!=null){root.style.setProperty('--bgDim',s.bgDim);const g=Math.round(parseFloat(s.bgDim)*100);const r=$('#rDim');if(r)r.value=g;const v=$('#vDim');if(v)v.textContent=g+'%';}
+  if(s.bgImgBlur!=null){root.style.setProperty('--bgImgBlur',s.bgImgBlur+'px');const r=$('#rImgBlur');if(r)r.value=s.bgImgBlur;const v=$('#vImgBlur');if(v)v.textContent=s.bgImgBlur;}
+  if(s.defaultPlaceId){const dp=$('#defPlace');if(dp)dp.value=s.defaultPlaceId;const pl=$('#placeId');if(pl&&!pl.value)pl.value=s.defaultPlaceId;}
+  if(s.favGames){try{favGames=JSON.parse(s.favGames)||[];}catch{favGames=[];}renderFavGames();}
+  renderThemes();
+  if(accounts.length)render();
+}
+function renderThemes(){const el=$('#themeList');if(!el)return;el.innerHTML='';
+  if(!themes.length){el.innerHTML='<div class="muted">No saved themes yet. Tweak the look, then "Save current as theme".</div>';return;}
+  themes.forEach((t,i)=>{const c=document.createElement('div');c.className='themechip';
+    c.innerHTML=`<span class="sw2" style="background:${t.accent||'#7c6aff'}"></span>${esc(t.name)}<span class="cpy" title="Share code">⧉</span><span class="del" title="Delete">×</span>`;
+    c.onclick=e=>{if(e.target.classList.contains('del')){themes.splice(i,1);persist('themes',JSON.stringify(themes));renderThemes();return;}if(e.target.classList.contains('cpy')){copyTheme(t);return;}applyTheme(t);};
+    el.appendChild(c);});}
+function applyTheme(t){const f={accent:t.accent,radius:t.radius,glassA:t.glassA,blur:t.blur};if(t.uiScale!=null)f.uiScale=t.uiScale;
+  if(t.font)f.font=t.font;if(t.textSize!=null)f.textSize=t.textSize;
+  if(t.accent2){f.accent2=t.accent2;f.gradAngle=(t.gradAngle!=null?t.gradAngle:135);f.accentGradient='1';}else{f.accentGradient='0';}
+  applySettings(f);Object.keys(f).forEach(k=>{if(f[k]!=null)persist(k,f[k]);});toast('Applied: '+(t.name||'theme'),'ok');}
+/* theme export / import + gallery */
+function encodeTheme(t){try{return'PRISM1:'+btoa(unescape(encodeURIComponent(JSON.stringify({name:t.name,accent:t.accent,radius:t.radius,glassA:t.glassA,blur:t.blur,uiScale:t.uiScale,font:t.font,textSize:t.textSize,accent2:t.accent2,gradAngle:t.gradAngle}))));}catch(e){return'';}}
+function clampNum(v,lo,hi,def){v=parseFloat(v);if(isNaN(v))return def;return Math.max(lo,Math.min(hi,v));}
+function decodeTheme(code){try{code=String(code||'').trim();if(!code.startsWith('PRISM1:'))return null;const o=JSON.parse(decodeURIComponent(escape(atob(code.slice(7)))));if(!o||typeof o.accent!=='string'||!/^#[0-9a-fA-F]{6}$/.test(o.accent))return null;
+  const FONTS=['Plus Jakarta Sans','Inter','Space Grotesk','Outfit','Segoe UI'];
+  const r={name:String(o.name||'Imported theme').slice(0,40),accent:o.accent,radius:clampNum(o.radius,0,22,8),glassA:clampNum(o.glassA,.3,.98,.62),blur:clampNum(o.blur,0,34,14),uiScale:clampNum(o.uiScale,.7,1.4,1)};
+  if(FONTS.includes(o.font))r.font=o.font;
+  if(o.textSize!=null)r.textSize=clampNum(o.textSize,.85,1.3,1);
+  if(typeof o.accent2==='string'&&/^#[0-9a-fA-F]{6}$/.test(o.accent2)){r.accent2=o.accent2;r.gradAngle=clampNum(o.gradAngle,0,360,135);}
+  return r;}catch(e){return null;}}
+function copyTheme(t){const code=encodeTheme(t);modal(`<h3>Share theme: ${esc(t.name)}</h3><p>Copy this code and share it (e.g. in #showcase). Others import it with <b>Import code</b>.</p><div class="row"><textarea id="mShare" class="inp" style="height:84px" readonly>${esc(code)}</textarea></div><div class="actions"><button class="btn" onclick="closeModal(null)">Close</button><button class="btn solid" id="mCopy">Copy</button></div>`);
+  setTimeout(()=>{const x=$('#mShare');if(x){x.focus();x.select();}},60);
+  $('#mCopy').onclick=()=>{const x=$('#mShare');x.select();let ok=false;try{navigator.clipboard.writeText(x.value);ok=true;}catch(e){}if(!ok){try{document.execCommand('copy');ok=true;}catch(e){}}toast(ok?'Copied!':'Press Ctrl+C to copy',ok?'ok':'');};}
+const GALLERY=[
+  {name:'Midnight Indigo',accent:'#7c6aff',radius:8,glassA:.62,blur:14},
+  {name:'Emerald',accent:'#4ade9e',radius:8,glassA:.6,blur:14},
+  {name:'Rose',accent:'#ff6eb2',radius:10,glassA:.6,blur:14},
+  {name:'Sunset',accent:'#ff9248',radius:10,glassA:.58,blur:12},
+  {name:'Ocean',accent:'#5ab0ff',radius:8,glassA:.62,blur:16},
+  {name:'Cyber',accent:'#22d3ee',radius:2,glassA:.5,blur:18},
+  {name:'Mono',accent:'#e1e1eb',radius:12,glassA:.66,blur:12}
+];
+function renderGallery(){const el=$('#galleryList');if(!el)return;el.innerHTML='';
+  for(const t of GALLERY){const c=document.createElement('div');c.className='themechip';
+    c.innerHTML=`<span class="sw2" style="background:${t.accent}"></span>${esc(t.name)}<span class="gadd" title="Save to my themes">＋</span>`;
+    c.onclick=e=>{if(e.target.classList.contains('gadd')){saveGalleryTheme(t);return;}applyTheme(t);};el.appendChild(c);}}
+function saveGalleryTheme(t){themes.push({name:t.name,accent:t.accent,radius:t.radius,glassA:t.glassA,blur:t.blur,uiScale:parseFloat((rScale.value/100).toFixed(2)),font:fontSel.value,textSize:parseFloat(((rText?rText.value:100)/100).toFixed(2))});persist('themes',JSON.stringify(themes));renderThemes();toast('Saved "'+t.name+'" to your themes','ok');}
+$('#importTheme').onclick=()=>{modal(`<h3>Import theme</h3><p>Paste a Prism theme code (starts with <b>PRISM1:</b>).</p><div class="row"><textarea id="mCode" class="inp" style="height:84px" placeholder="PRISM1:..."></textarea></div><div class="actions"><button class="btn" onclick="closeModal(null)">Cancel</button><button class="btn solid" id="mImpT">Import</button></div>`);
+  setTimeout(()=>{const x=$('#mCode');if(x)x.focus();},60);
+  $('#mImpT').onclick=()=>{const t=decodeTheme($('#mCode').value);if(!t){toast('Invalid theme code','err');return;}closeModal(true);themes.push(t);persist('themes',JSON.stringify(themes));renderThemes();applyTheme(t);};};
+renderGallery();
+$('#saveTheme').onclick=()=>{modal(`<h3>Save theme</h3><div class="row"><input id="mName" class="inp" placeholder="Theme name"/></div><div class="actions"><button class="btn" onclick="closeModal(null)">Cancel</button><button class="btn solid" id="mSave">Save</button></div>`);
+  setTimeout(()=>$('#mName').focus(),60);
+  $('#mSave').onclick=()=>{const n=$('#mName').value.trim();if(!n)return;closeModal(true);
+    const th={name:n,accent:getComputedStyle(root).getPropertyValue('--accent').trim(),radius:parseInt(rRadius.value),glassA:parseFloat((rGlass.value/100).toFixed(2)),blur:parseInt(rBlur.value),uiScale:parseFloat((rScale.value/100).toFixed(2)),font:fontSel.value,textSize:parseFloat(((rText?rText.value:100)/100).toFixed(2))};
+    if(gradOn){th.accent2=getComputedStyle(root).getPropertyValue('--accent2').trim();th.gradAngle=parseInt(rAngle?rAngle.value:135);}
+    themes.push(th);
+    persist('themes',JSON.stringify(themes));renderThemes();toast('Saved theme: '+n,'ok');};};
+$('#resetAppearance').onclick=()=>{modal(`<h3>Reset appearance?</h3><p>Resets accent, theme mode, sizes, font, gradient, roundness, glass and blur to defaults. Your saved themes and background image are kept.</p><div class="actions"><button class="btn" onclick="closeModal(null)">Cancel</button><button class="btn danger" id="mReset">Reset</button></div>`);
+  $('#mReset').onclick=()=>{closeModal(true);const d={accent:'#7c6aff',accent2:'#9d6bff',accentGradient:'0',gradAngle:'135',radius:'8',glassA:'0.62',blur:'14',uiScale:'1.00',textSize:'1.00',reduceMotion:'0',compact:'0',themeMode:'dark',font:'Plus Jakarta Sans'};applySettings(d);Object.keys(d).forEach(k=>persist(k,d[k]));toast('Appearance reset to defaults','ok');};};
+
+/* behavior */
+let warnN=5;
+const rWarn=$('#rWarn');
+rWarn.oninput=()=>{warnN=parseInt(rWarn.value)||0;$('#vWarn').textContent=warnN===0?'Off':warnN;};rWarn.onchange=()=>persist('warnN',warnN);
+$('#swRejoin').onclick=()=>{const on=$('#swRejoin').classList.toggle('on');persist('autoRejoin',on?'1':'0');};
+$('#swPresence').onclick=()=>{const on=$('#swPresence').classList.toggle('on');persist('richPresence',on?'1':'0');};
+function presencePing(){const t=document.querySelector('.nav.on')?.dataset.tab||'accounts';call('presence',{page:t}).catch(()=>{});}
+/* launcher picker (Bloxstrap / Fishstrap / Froststrap / official) */
+const LAUNCHER_NAMES={auto:()=>tr('launcher.auto'),roblox:()=>tr('launcher.roblox'),bloxstrap:()=>'Bloxstrap',fishstrap:()=>'Fishstrap',froststrap:()=>'Froststrap'};
+let launcherDetect={};
+function renderLauncherOpts(){const sel=$('#launcherSel');if(!sel)return;[...sel.options].forEach(o=>{const base=(LAUNCHER_NAMES[o.value]||(()=>o.value))();const d=launcherDetect[o.value];let sfx='';if(o.value!=='auto'&&d)sfx=d.installed?' ✓':' — '+tr('launcher.notfound');o.textContent=base+sfx;});}
+function applyLaunchers(items){launcherDetect={};(items||[]).forEach(it=>{launcherDetect[it.kind]=it;});renderLauncherOpts();}
+{const ls=$('#launcherSel');if(ls)ls.onchange=()=>persist('launcher',ls.value);}
+$('#swTrayMin').onclick=()=>{const on=$('#swTrayMin').classList.toggle('on');persist('minimizeToTray',on?'1':'0');};
+$('#swTrayClose').onclick=()=>{const on=$('#swTrayClose').classList.toggle('on');persist('closeToTray',on?'1':'0');};
+$('#swStartup').onclick=()=>{const on=$('#swStartup').classList.toggle('on');persist('startWithWindows',on?'1':'0');};
+$('#swCompact').onclick=()=>{const on=$('#swCompact').classList.toggle('on');document.body.classList.toggle('compact',on);persist('compact',on?'1':'0');};
+$('#langSel').onchange=()=>{const v=$('#langSel').value;applyLang(v);persist('lang',v);};
+$('#acctSearch').oninput=()=>{acctQuery=$('#acctSearch').value.trim().toLowerCase();render();};
+$('#btnLogs').onclick=()=>call('openLogs');
+$('#bgPick').onclick=()=>call('pickBackground');
+$('#bgClear').onclick=()=>call('clearBackground');
+$('#bgUrl').onclick=()=>{modal(`<h3>Background from URL</h3><p>Paste a direct link to an image (ending in .png / .jpg).</p><div class="row"><input id="mBgUrl" class="inp" placeholder="https://…/image.png"/></div><div class="actions"><button class="btn" onclick="closeModal(null)">Cancel</button><button class="btn solid" id="mBgGo">Set background</button></div>`);
+  setTimeout(()=>{const x=$('#mBgUrl');if(x)x.focus();},60);
+  $('#mBgGo').onclick=()=>guard(async()=>{const u=$('#mBgUrl').value.trim();if(!u){toast('Paste a link first','err');return;}closeModal(true);await call('setBackgroundUrl',{url:u});});};
+function confirmModal(title,msg,okLabel){const p=modal(`<h3>${esc(title)}</h3><p>${esc(msg)}</p><div class="actions"><button class="btn" id="cmC">Cancel</button><button class="btn solid" id="cmO">${esc(okLabel||'Confirm')}</button></div>`);
+  $('#cmC').onclick=()=>closeModal(false);$('#cmO').onclick=()=>closeModal(true);return p;}
+
+/* scale to fit window (transform-scale the app to the window size) */
+function fit(){const z=Math.max(.6,Math.min(2.0,Math.min(innerWidth/1100,innerHeight/720)*uiScale));const w=$('#appwrap');
+  w.style.transform='scale('+z+')';w.style.width=(innerWidth/z)+'px';w.style.height=(innerHeight/z)+'px';}
+window.addEventListener('resize',fit);
+function setBg(uri){const r=document.documentElement;if(uri){r.style.setProperty('--bgImg',`url("${uri}")`);document.body.classList.add('hasbg');}else{r.style.setProperty('--bgImg','none');document.body.classList.remove('hasbg');}}
+
+/* updates */
+let updInfo=null;
+function showUpdate(m){updInfo=m;const tx=$('#updtext');if(tx)tx.textContent='🔺 Prism v'+m.version+' is available';const bar=$('#updbar');if(bar)bar.classList.add('show');toast('Update available: v'+m.version,'ok');}
+$('#updDl').onclick=()=>{const b=$('#updDl');b.disabled=true;b.textContent='Updating…';call('installUpdate');};
+$('#updDismiss').onclick=()=>$('#updbar').classList.remove('show');
+$('#btnCheckUpd').onclick=()=>guard(async()=>{$('#updStatus').textContent='Checking…';const r=await call('checkUpdate');$('#updStatus').textContent=(r&&r.update)?('Update available: v'+r.version):("You're on the latest version (v"+((r&&r.current)||'?')+')');});
+
+/* running clients */
+let runClients=[],runTiled=false;
+function fmtUp(ms){if(ms<0)ms=0;let s=Math.floor(ms/1000);const h=Math.floor(s/3600);s-=h*3600;const m=Math.floor(s/60);s-=m*60;return h>0?(h+'h '+m+'m'):(m>0?(m+'m '+s+'s'):(s+'s'));}
+function renderRun(){const panel=$('#runPanel'),list=$('#runList');if(!panel)return;
+  if(!runClients.length){panel.classList.remove('show');return;}
+  panel.classList.add('show');$('#runTitle').textContent='RUNNING · '+runClients.length;
+  const tb=$('#bTile');if(tb){tb.classList.toggle('solid',runTiled);tb.textContent=tr('run.tile');}
+  list.innerHTML='';
+  for(const c of runClients){const el=document.createElement('div');el.className='rchip';
+    el.innerHTML=`<span class="rdot"></span><b>${esc(c.alias||('id '+c.userId))}</b><span class="rup" data-st="${c.startedMs}">0s</span><span class="rx" title="Close this client">✕</span>`;
+    el.querySelector('.rx').onclick=()=>guard(async()=>{await call('closeClient',{userId:c.userId});});
+    list.appendChild(el);}
+  tickUp();}
+function tickUp(){const now=Date.now();document.querySelectorAll('#runList .rup').forEach(s=>{s.textContent=fmtUp(now-Number(s.dataset.st));});}
+$('#bCloseAll').onclick=()=>guard(async()=>{if(!runClients.length){toast('No running clients','err');return;}const ok=await confirmModal('Close all clients?','This closes '+runClients.length+' running Roblox client(s).','Close all');if(ok)await call('closeAllClients');});
+$('#bTile').onclick=()=>guard(async()=>{await call('tileClients');});
+setInterval(tickUp,1000);
+
+window.addEventListener('DOMContentLoaded',()=>{setMaxIcon(false);fit();setTimeout(()=>{minDone=true;maybeHide();},2200);setTimeout(()=>{$('#splash').classList.add('gone');$('.appinner').classList.add('ready');},5200);if(wv)call('ready').catch(()=>{});});
+</script>
+</body></html>

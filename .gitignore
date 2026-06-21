@@ -1,0 +1,27 @@
+# Build output
+bin/
+obj/
+*.user
+
+# Publish
+publish/
+*.zip
+
+# Accounts live in %APPDATA%, never in the repo — but guard anyway.
+accounts.json
+*.tmp
+
+# Kept private (not part of the open-source app)
+bot/
+discord/
+releases/
+build-demo.ps1
+*.mp4
+*.gif
+.vs/
+
+# Secrets / local state
+.env
+*.env
+state.json
+ids.json

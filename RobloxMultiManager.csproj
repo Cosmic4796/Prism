@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <!-- App is branded "Prism" (output Prism.exe). RootNamespace stays RobloxMultiManager
+         so existing code namespaces + the %APPDATA%\RobloxMultiManager data folder are unchanged. -->
+    <AssemblyName>Prism</AssemblyName>
+    <RootNamespace>RobloxMultiManager</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>prism.ico</ApplicationIcon>
+    <Product>Prism</Product>
+    <AssemblyTitle>Prism — Roblox Account Manager</AssemblyTitle>
+    <Company>Prism</Company>
+    <!-- Publish with: dotnet publish -c Release -r win-x64 (add the self-contained flag to bundle the runtime). -->
+    <Version>1.1.4</Version>
+    <!-- The WebView2 package ships a WPF wrapper (pulling WindowsBase 5.0) that we
+         don't use; we only reference its WinForms control. Demote the resulting
+         harmless WindowsBase version-conflict warning to a message. -->
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- DPAPI (ProtectedData) is not in the default .NET 8 BCL surface; pull it from NuGet. -->
+    <PackageReference Include="DiscordRichPresence" Version="1.6.1.70" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4022.49" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The entire main UI is a web app, embedded and loaded via WebView2.NavigateToString. -->
+    <EmbeddedResource Include="UI\web\app.html" />
+  </ItemGroup>
+
+</Project>
