@@ -7,45 +7,20 @@ using RobloxMultiManager.Models;
 
 namespace RobloxMultiManager.Services;
 
-/// <summary>
-/// Talks to Roblox's (unofficial, cookie-based) web endpoints:
-///   * validate a .ROBLOSECURITY cookie and read the authenticated user,
-///   * fetch a headshot thumbnail URL,
-///   * mint a single-use authentication ticket used to launch the client as that account.
-///
-/// Design notes:
-///   * One <see cref="HttpClient"/> with <c>UseCookies = false</c> so we set the
-///     Cookie header per-request (every account has its own cookie) AND can read
-///     raw Set-Cookie response headers ourselves.
-///   * Roblox rotates the .ROBLOSECURITY cookie via Set-Cookie (a breaking
-///     cookie-format change went live 2026-05-01). Whenever we see a rotation we
-///     raise <see cref="CookieRotated"/> so the owner can persist the new value;
-///     otherwise the account silently starts returning 401.
-///   * A browser-like User-Agent is sent so Cloudflare doesn't 403 us.
-/// </summary>
 public sealed class RobloxWebApi : IDisposable
 {
     private const string AuthTicketUrl = "https://auth.roblox.com/v1/authentication-ticket";
     private const string AuthenticatedUserUrl = "https://users.roblox.com/v1/users/authenticated";
     private const string CookieName = ".ROBLOSECURITY";
 
-    // A normal desktop-browser UA. Roblox sits behind Cloudflare and challenges
-    // requests that look non-browser.
     private const string UserAgent =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
         "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
     private readonly HttpClient _http;
 
-    // CSRF token cache. Keyed by a HASH of the cookie (never the plaintext cookie
-    // itself) so we don't keep a long-lived, GC-rooted copy of every credential.
     private readonly ConcurrentDictionary<string, string> _csrfByCookieHash = new();
 
-    /// <summary>
-    /// Raised when Roblox rotates a .ROBLOSECURITY cookie via Set-Cookie.
-    /// Args: (cookieWeSent, newCookieValue). Handlers should re-persist. May fire
-    /// on a background thread.
-    /// </summary>
     public event Action<string, string>? CookieRotated;
 
     public RobloxWebApi(HttpClient? http = null)
@@ -58,12 +33,7 @@ public sealed class RobloxWebApi : IDisposable
         {
             var handler = new HttpClientHandler
             {
-                // We manage cookies by hand so we can read Set-Cookie and use a
-                // different cookie per request.
                 UseCookies = false,
-                // CRITICAL: do NOT auto-follow redirects. The cookie is attached as a
-                // raw header (not a domain-scoped CookieContainer), so a cross-host 30x
-                // would otherwise replay the full credential off *.roblox.com.
                 AllowAutoRedirect = false,
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
             };
@@ -73,13 +43,8 @@ public sealed class RobloxWebApi : IDisposable
         }
     }
 
-    // ----- cookie validation + user info --------------------------------------
+    // ---- cookie validation + user info ----
 
-    /// <summary>
-    /// Validates a cookie and returns the authenticated user, or <c>null</c> if the
-    /// cookie is invalid/expired (HTTP 401). Throws <see cref="RobloxApiException"/>
-    /// for other failures (network, rate-limit, Cloudflare block).
-    /// </summary>
     public async Task<RobloxUser?> ValidateCookieAndGetUserAsync(
         string roblosecurityCookie, CancellationToken ct = default)
     {
@@ -105,7 +70,7 @@ public sealed class RobloxWebApi : IDisposable
             CaptureCookieRotation(roblosecurityCookie, resp);
 
             if (resp.StatusCode == HttpStatusCode.Unauthorized)
-                return null; // cookie invalid/expired
+                return null;
 
             if (resp.StatusCode == HttpStatusCode.TooManyRequests)
                 throw new RobloxApiException("Roblox rate-limited the request (HTTP 429). Try again shortly.");
@@ -134,10 +99,6 @@ public sealed class RobloxWebApi : IDisposable
         }
     }
 
-    /// <summary>
-    /// Returns a headshot thumbnail image URL for a user, or <c>null</c> if it isn't
-    /// ready yet. Best-effort: never throws (returns null on any failure).
-    /// </summary>
     public async Task<string?> GetHeadshotThumbnailUrlAsync(
         long userId, string size = "150x150", CancellationToken ct = default)
     {
@@ -164,10 +125,6 @@ public sealed class RobloxWebApi : IDisposable
         }
     }
 
-    /// <summary>
-    /// Fetches a user's headshot as PNG bytes (resolves the thumbnail URL, then
-    /// downloads it). Best-effort: returns null on any failure. No credentials sent.
-    /// </summary>
     public async Task<byte[]?> GetHeadshotPngAsync(
         long userId, string size = "150x150", CancellationToken ct = default)
     {
@@ -185,9 +142,8 @@ public sealed class RobloxWebApi : IDisposable
         }
     }
 
-    // ----- account status (Robux / Premium) -----------------------------------
+    // ---- account status ----
 
-    /// <summary>Robux balance for the authenticated account, or null on failure.</summary>
     public async Task<long?> GetRobuxAsync(string cookie, long userId, CancellationToken ct = default)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, $"https://economy.roblox.com/v1/users/{userId}/currency");
@@ -203,7 +159,6 @@ public sealed class RobloxWebApi : IDisposable
         catch (Exception ex) when (ex is not OperationCanceledException) { return null; }
     }
 
-    /// <summary>Premium membership status, or null if it couldn't be determined.</summary>
     public async Task<bool?> GetPremiumAsync(string cookie, long userId, CancellationToken ct = default)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, $"https://premiumfeatures.roblox.com/v1/users/{userId}/validate-membership");
@@ -214,18 +169,16 @@ public sealed class RobloxWebApi : IDisposable
             CaptureCookieRotation(cookie, resp);
             if (!resp.IsSuccessStatusCode) return null;
             string body = (await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false)).Trim();
-            if (bool.TryParse(body, out var b)) return b; // endpoint returns "true"/"false"
+            if (bool.TryParse(body, out var b)) return b;
             return null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException) { return null; }
     }
 
-    // ----- game discovery (in-app browser, no launch) -------------------------
+    // ---- game discovery ----
 
-    // A per-session id the discovery/search endpoints expect (value is arbitrary).
     private readonly string _sessionId = Guid.NewGuid().ToString();
 
-    /// <summary>Keyword game search (anonymous, no cookie). Returns up to ~24 games.</summary>
     public async Task<IReadOnlyList<RobloxGame>> SearchGamesAsync(string query, CancellationToken ct = default)
     {
         var list = new List<RobloxGame>();
@@ -251,7 +204,6 @@ public sealed class RobloxWebApi : IDisposable
         return list;
     }
 
-    /// <summary>Discovery sorts (Top Trending, Top Playing Now, …) with their games embedded.</summary>
     public async Task<IReadOnlyList<(string Title, IReadOnlyList<RobloxGame> Games)>> GetDiscoverSortsAsync(
         CancellationToken ct = default)
     {
@@ -279,7 +231,6 @@ public sealed class RobloxWebApi : IDisposable
         return result;
     }
 
-    /// <summary>Game icon image URLs by universeId (anonymous). Best-effort.</summary>
     public async Task<Dictionary<long, string>> GetGameIconsAsync(IEnumerable<long> universeIds, CancellationToken ct = default)
     {
         var ids = universeIds.Distinct().ToList();
@@ -317,13 +268,8 @@ public sealed class RobloxWebApi : IDisposable
         return new RobloxGame(uid, pid, name, playing, up, down);
     }
 
-    // ----- public server list (for same-server / trading launches) ------------
+    // ---- public server list ----
 
-    /// <summary>
-    /// Lists currently-running PUBLIC servers for a place, sorted by most free slots
-    /// first (so you can pick one with room for several alts). Best-effort, no auth.
-    /// Throws <see cref="RobloxApiException"/> on failure.
-    /// </summary>
     public async Task<IReadOnlyList<RobloxServer>> GetPublicServersAsync(
         long placeId, CancellationToken ct = default)
     {
@@ -375,15 +321,10 @@ public sealed class RobloxWebApi : IDisposable
                 throw new RobloxApiException("Couldn't parse the Roblox server list.", ex);
             }
 
-            // Most free slots first — easiest to fit several alts into one server.
             return list.OrderByDescending(s => s.FreeSlots).ToList();
         }
     }
 
-    /// <summary>
-    /// Best-effort lookup of place (game) names by placeId, for the Analytics page.
-    /// Needs an authenticated cookie. Returns whatever it could resolve (empty on failure).
-    /// </summary>
     public async Task<Dictionary<long, string>> GetPlaceNamesAsync(
         string roblosecurityCookie, IEnumerable<long> placeIds, CancellationToken ct = default)
     {
@@ -412,14 +353,8 @@ public sealed class RobloxWebApi : IDisposable
         return result;
     }
 
-    // ----- private server access code -----------------------------------------
+    // ---- private server access code ----
 
-    /// <summary>
-    /// Resolves a private-server <paramref name="linkCode"/> (from a share link) into the
-    /// signed <c>accessCode</c> GUID the launcher needs, by reading the authenticated game
-    /// page (the same trick account managers use). Returns null if it can't be found
-    /// (caller can then fall back to launching with the linkCode alone).
-    /// </summary>
     public async Task<string?> ResolvePrivateServerAccessCodeAsync(
         string roblosecurityCookie, long placeId, string linkCode, CancellationToken ct = default)
     {
@@ -433,7 +368,6 @@ public sealed class RobloxWebApi : IDisposable
             CaptureCookieRotation(roblosecurityCookie, resp);
             if (!resp.IsSuccessStatusCode) return null;
             string html = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            // Page embeds: Roblox.GameLauncher.joinPrivateGame(<placeId>, '<accessCode>', ...)
             var m = System.Text.RegularExpressions.Regex.Match(
                 html, @"joinPrivateGame\(\s*\d+\s*,\s*'([\w\-]+)'");
             return m.Success ? m.Groups[1].Value : null;
@@ -444,14 +378,6 @@ public sealed class RobloxWebApi : IDisposable
         }
     }
 
-    /// <summary>
-    /// Resolves a NEW-format share-link code (from <c>roblox.com/share?code=CODE&amp;type=Server</c>)
-    /// into the place + private-server join info, via the authenticated sharelinks endpoint.
-    /// Roblox replaced the old <c>?privateServerLinkCode=</c> links with these opaque codes, so
-    /// this is the only way back to a placeId/linkCode. Returns null if it can't be resolved.
-    /// The response wrapper field name isn't documented, so we search the JSON tree defensively
-    /// for the values we need.
-    /// </summary>
     public async Task<ShareLinkResult?> ResolveShareLinkAsync(
         string roblosecurityCookie, string code, CancellationToken ct = default)
     {
@@ -486,7 +412,6 @@ public sealed class RobloxWebApi : IDisposable
             {
                 CaptureCookieRotation(roblosecurityCookie, resp);
 
-                // Stale CSRF → Roblox returns a fresh token in the 403; retry once.
                 if (resp.StatusCode == HttpStatusCode.Forbidden &&
                     TryReadHeader(resp, "x-csrf-token", out var fresh))
                 {
@@ -526,17 +451,11 @@ public sealed class RobloxWebApi : IDisposable
         return null;
     }
 
-    // ----- auth ticket --------------------------------------------------------
+    // ---- auth ticket ----
 
-    /// <summary>
-    /// Mints a single-use authentication ticket for the cookie. The ticket expires
-    /// within seconds, so build the launch URL and start the process immediately
-    /// after this returns. Throws <see cref="RobloxApiException"/> on failure.
-    /// </summary>
     public async Task<string> GetAuthenticationTicketAsync(
         string roblosecurityCookie, CancellationToken ct = default)
     {
-        // Use a cached CSRF token if we have one; otherwise prime it.
         string key = CookieKey(roblosecurityCookie);
         string? csrf = _csrfByCookieHash.TryGetValue(key, out var cached)
             ? cached
@@ -548,7 +467,6 @@ public sealed class RobloxWebApi : IDisposable
                 .ConfigureAwait(false);
             CaptureCookieRotation(roblosecurityCookie, resp);
 
-            // Stale CSRF: Roblox hands back a fresh token in the 403; retry once.
             if (resp.StatusCode == HttpStatusCode.Forbidden &&
                 TryReadHeader(resp, "x-csrf-token", out var fresh))
             {
@@ -578,10 +496,6 @@ public sealed class RobloxWebApi : IDisposable
         throw new RobloxApiException("Couldn't get an authentication ticket after refreshing the CSRF token.");
     }
 
-    /// <summary>
-    /// POSTs the auth-ticket endpoint with no CSRF token to harvest a fresh one from
-    /// the 403 response header. Caches and returns it (empty string if absent).
-    /// </summary>
     private async Task<string> PrimeCsrfTokenAsync(string cookie, CancellationToken ct)
     {
         using var resp = await PostAuthTicketAsync(cookie, csrf: null, ct).ConfigureAwait(false);
@@ -591,7 +505,6 @@ public sealed class RobloxWebApi : IDisposable
             _csrfByCookieHash[CookieKey(cookie)] = token;
             return token;
         }
-        // No token in the priming response. Surface the most useful reason.
         if (resp.StatusCode == HttpStatusCode.Unauthorized)
             throw new RobloxApiException("That account's cookie is invalid or expired — re-add it.");
         return "";
@@ -602,7 +515,6 @@ public sealed class RobloxWebApi : IDisposable
     {
         var req = new HttpRequestMessage(HttpMethod.Post, AuthTicketUrl)
         {
-            // Empty JSON body; the endpoint takes no parameters.
             Content = new StringContent("", Encoding.UTF8, "application/json"),
         };
         AddCookie(req, cookie);
@@ -626,26 +538,18 @@ public sealed class RobloxWebApi : IDisposable
         }
     }
 
-    // ----- helpers ------------------------------------------------------------
+    // ---- helpers ----
 
     private static void AddCookie(HttpRequestMessage req, string roblosecurityCookie)
     {
-        // Defense in depth: only ever attach the credential to a roblox.com host, so
-        // the "never sent anywhere but *.roblox.com" guarantee holds even if a URL is
-        // ever mistyped or a redirect were followed.
         string host = req.RequestUri?.Host ?? "";
         if (!(host.Equals("roblox.com", StringComparison.OrdinalIgnoreCase) ||
               host.EndsWith(".roblox.com", StringComparison.OrdinalIgnoreCase)))
             throw new RobloxApiException($"Refusing to send account credentials to non-Roblox host '{host}'.");
 
-        // The cookie value (including the "_|WARNING:..." prefix) must be sent
-        // verbatim. TryAddWithoutValidation avoids .NET rejecting the value's
-        // special characters.
         req.Headers.TryAddWithoutValidation("Cookie", $"{CookieName}={roblosecurityCookie}");
     }
 
-    /// <summary>A non-secret, stable cache key for a cookie (SHA-256 hex), so we never
-    /// keep the plaintext credential alive as a dictionary key.</summary>
     private static string CookieKey(string cookie)
     {
         byte[] hash = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(cookie));
@@ -663,17 +567,12 @@ public sealed class RobloxWebApi : IDisposable
         return false;
     }
 
-    /// <summary>
-    /// If the response rotated .ROBLOSECURITY, raise <see cref="CookieRotated"/> with
-    /// the new value so callers can persist it. Ignores deletion/clearing cookies.
-    /// </summary>
     private void CaptureCookieRotation(string sentCookie, HttpResponseMessage resp)
     {
         if (!resp.Headers.TryGetValues("Set-Cookie", out var setCookies)) return;
 
         foreach (string sc in setCookies)
         {
-            // Each looks like ".ROBLOSECURITY=<value>; Domain=.roblox.com; Path=/; ..."
             int eq = sc.IndexOf('=');
             if (eq <= 0) continue;
             string cookieName = sc.AsSpan(0, eq).Trim().ToString();
@@ -682,13 +581,11 @@ public sealed class RobloxWebApi : IDisposable
             int semi = sc.IndexOf(';', eq + 1);
             string newValue = (semi < 0 ? sc[(eq + 1)..] : sc[(eq + 1)..semi]).Trim();
 
-            // Skip empty/deletion sentinels and no-op rotations.
-            if (newValue.Length < 16) continue;            // deletes use tiny placeholder values
+            if (newValue.Length < 16) continue;
             if (newValue == sentCookie) continue;
 
-            // A subscriber throwing must never fail the underlying Roblox request.
             try { CookieRotated?.Invoke(sentCookie, newValue); }
-            catch { /* persistence is best-effort; the request itself still succeeds */ }
+            catch { }
             return;
         }
     }
@@ -697,9 +594,6 @@ public sealed class RobloxWebApi : IDisposable
         string.IsNullOrWhiteSpace(body) ? "" :
         body.Length <= 200 ? body : body[..200] + "…";
 
-    // Recursive, case-insensitive search for a property by name anywhere in a JSON tree.
-    // The sharelinks response wrapping isn't documented/stable, so we just hunt for the
-    // fields we care about wherever Roblox nests them.
     private static JsonElement? FindProp(JsonElement el, string name)
     {
         if (el.ValueKind == JsonValueKind.Object)
@@ -737,5 +631,4 @@ public sealed class RobloxWebApi : IDisposable
     public void Dispose() => _http.Dispose();
 }
 
-/// <summary>Resolved info from a new-format Roblox share link (a private/specific server).</summary>
 public sealed record ShareLinkResult(long PlaceId, string? LinkCode, string? AccessCode, string? JobId, long? PrivateServerId);

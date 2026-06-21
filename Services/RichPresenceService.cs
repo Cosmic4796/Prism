@@ -2,23 +2,14 @@ using DiscordRPC;
 
 namespace RobloxMultiManager.Services;
 
-/// <summary>
-/// Optional Discord Rich Presence: shows "Playing Prism" on the user's Discord profile while
-/// the app is open — logo, two text lines, an elapsed timer from launch, and Download + Join
-/// buttons. Pure free advertising. Entirely best-effort: it no-ops when Discord isn't running
-/// (or the user disabled it) and never throws into the app.
-/// </summary>
 public sealed class RichPresenceService : IDisposable
 {
-    // The Prism Discord application (same app id as the bot). Its NAME is what renders as
-    // "Playing <name>", so the app must be named "Prism" in the Developer Portal, and a square
-    // art asset keyed "prism" must be uploaded under Rich Presence → Art Assets.
     private const string AppId = "1518041189012603022";
     private const string GitHubUrl = "https://github.com/Cosmic4796/Prism";
     private const string DiscordUrl = "https://discord.gg/CZNm9B8JqY";
 
     private DiscordRpcClient? _client;
-    private readonly Timestamps _since = new(DateTime.UtcNow); // one instance → stable elapsed timer
+    private readonly Timestamps _since = new(DateTime.UtcNow);
     private string _details = "Managing Roblox accounts";
     private string _state = "In the launcher";
     private bool _enabled;
@@ -30,7 +21,7 @@ public sealed class RichPresenceService : IDisposable
         new() { Label = "Join Discord", Url = DiscordUrl },
     };
 
-    /// <summary>Connect to the local Discord client and show presence. Safe to call repeatedly.</summary>
+    // ---- lifecycle ----
     public void Start()
     {
         lock (_lock)
@@ -39,7 +30,7 @@ public sealed class RichPresenceService : IDisposable
             try
             {
                 _client = new DiscordRpcClient(AppId);
-                _client.Initialize();      // connects on a background thread; harmless if Discord is closed
+                _client.Initialize();
                 _enabled = true;
                 Push();
             }
@@ -47,7 +38,6 @@ public sealed class RichPresenceService : IDisposable
         }
     }
 
-    /// <summary>Clear and disconnect presence.</summary>
     public void Stop()
     {
         lock (_lock)
@@ -59,10 +49,9 @@ public sealed class RichPresenceService : IDisposable
         }
     }
 
-    /// <summary>Toggle from a Settings switch.</summary>
     public void SetEnabled(bool on) { if (on) Start(); else Stop(); }
 
-    /// <summary>Set the two visible lines (top = details, bottom = state). Empty values are ignored.</summary>
+    // ---- presence updates ----
     public void Update(string? details, string? state)
     {
         lock (_lock)
@@ -91,10 +80,9 @@ public sealed class RichPresenceService : IDisposable
                 Buttons = PresenceButtons,
             });
         }
-        catch { /* Discord closed / pipe dropped — ignore */ }
+        catch { }
     }
 
-    // Rich-presence text fields max out at 128 chars.
     private static string Clamp(string s) => s.Length <= 128 ? s : s[..127] + "…";
 
     public void Dispose() => Stop();

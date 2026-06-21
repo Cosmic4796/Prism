@@ -5,13 +5,9 @@ using System.Windows.Forms;
 
 namespace RobloxMultiManager.UI;
 
-/// <summary>
-/// Minimal native theming for Prism's host windows. The main UI is a web app
-/// (UI/web/app.html) that owns its own styling; this only handles the host form
-/// background, the Windows-11 dark title bar, and the generated prism app icon.
-/// </summary>
 internal static class Theme
 {
+    // ---- palette ----
     public const string AppName = "Prism";
     public const string AppTitle = "Prism — Roblox Account Manager";
 
@@ -21,6 +17,7 @@ internal static class Theme
     public static readonly Color SubText = Color.FromArgb(154, 160, 166);
     public static readonly Font UiFont = new("Segoe UI", 9.5f);
 
+    // ---- dark title bar ----
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
     private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
@@ -28,9 +25,10 @@ internal static class Theme
     public static void ApplyDarkTitleBar(Form form)
     {
         try { int on = 1; DwmSetWindowAttribute(form.Handle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref on, sizeof(int)); }
-        catch { /* unsupported OS */ }
+        catch { }
     }
 
+    // ---- app icon ----
     private static Icon? _appIcon;
     public static Icon AppIcon
     {
@@ -46,12 +44,12 @@ internal static class Theme
         form.BackColor = Bg;
         form.ForeColor = Text;
         form.Font = UiFont;
-        try { form.Icon = AppIcon; } catch { /* ignore */ }
+        try { form.Icon = AppIcon; } catch { }
         if (form.IsHandleCreated) ApplyDarkTitleBar(form);
         else form.HandleCreated += (_, _) => ApplyDarkTitleBar(form);
     }
 
-    /// <summary>Draws the prism app icon: a glass triangle splitting a white beam into a rainbow.</summary>
+    // ---- logo drawing ----
     public static Bitmap BuildLogo(int size)
     {
         var bmp = new Bitmap(size, size);

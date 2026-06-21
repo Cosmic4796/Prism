@@ -6,22 +6,8 @@ using RobloxMultiManager.Models;
 
 namespace RobloxMultiManager.Services;
 
-/// <summary>
-/// Persists the account list to %APPDATA%\RobloxMultiManager\accounts.json and
-/// handles DPAPI encryption of the session cookie.
-///
-/// Security model:
-///   * The .ROBLOSECURITY cookie is encrypted with Windows DPAPI scoped to the
-///     CURRENT USER. The ciphertext is useless to any other user or machine.
-///   * Plaintext cookies live in memory only for the few milliseconds it takes to
-///     hit Roblox's auth API during a launch, then go out of scope.
-///   * Nothing is ever sent anywhere except *.roblox.com.
-/// </summary>
 public sealed class SecureStore
 {
-    // A constant entropy salt mixed into DPAPI. Doesn't need to be secret — it just
-    // means a blob from this app can't be trivially decrypted by an unrelated app
-    // that happens to call DPAPI for the same user.
     private static readonly byte[] Entropy =
         Encoding.UTF8.GetBytes("RobloxMultiManager::v1::cookie");
 
@@ -30,15 +16,14 @@ public sealed class SecureStore
 
     public SecureStore()
     {
-        _dir = AppData.Dir; // %APPDATA%\Prism (migrated from the old name on first use)
+        _dir = AppData.Dir;
         _file = Path.Combine(_dir, "accounts.json");
     }
 
     public string FilePath => _file;
 
-    // ----- cookie encryption ---------------------------------------------------
+    // ---- cookie encryption ----
 
-    /// <summary>Encrypt a plaintext cookie -> base64 DPAPI blob for storage.</summary>
     public static string Protect(string plaintextCookie)
     {
         byte[] data = Encoding.UTF8.GetBytes(plaintextCookie);
@@ -46,7 +31,6 @@ public sealed class SecureStore
         return Convert.ToBase64String(blob);
     }
 
-    /// <summary>Decrypt a stored base64 DPAPI blob -> plaintext cookie.</summary>
     public static string Unprotect(string encryptedBase64)
     {
         byte[] blob = Convert.FromBase64String(encryptedBase64);
@@ -54,12 +38,8 @@ public sealed class SecureStore
         return Encoding.UTF8.GetString(data);
     }
 
-    // ----- persistence ---------------------------------------------------------
+    // ---- persistence ----
 
-    /// <summary>
-    /// Non-null if the last <see cref="Load"/> found an unreadable/corrupt file. The
-    /// existing file was backed up rather than overwritten; surface this to the user.
-    /// </summary>
     public string? LoadError { get; private set; }
 
     public List<Account> Load()
@@ -73,9 +53,6 @@ public sealed class SecureStore
         }
         catch (Exception ex)
         {
-            // Corrupt/unreadable file: preserve it under a backup name so the next
-            // Save() can't silently overwrite a store the user might still recover,
-            // then start empty rather than crash.
             try
             {
                 string backup = _file + ".corrupt-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
@@ -98,9 +75,6 @@ public sealed class SecureStore
         string json = JsonSerializer.Serialize(
             accounts, new JsonSerializerOptions { WriteIndented = true });
 
-        // Write to a unique temp file, then ATOMICALLY swap it into place so a crash
-        // or power loss mid-write can never truncate/corrupt the real list (File.Copy
-        // would overwrite in place and is not atomic).
         string tmp = Path.Combine(_dir, Path.GetRandomFileName());
         File.WriteAllText(tmp, json);
         try
@@ -112,8 +86,7 @@ public sealed class SecureStore
         }
         catch
         {
-            // The temp holds encrypted cookies — don't leave it behind on failure.
-            try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* best effort */ }
+            try { if (File.Exists(tmp)) File.Delete(tmp); } catch { }
             throw;
         }
     }

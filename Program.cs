@@ -9,12 +9,11 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        // ---- bootstrap ----
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
 
-        // Safety net: show, don't crash, on any exception that slips past a handler
-        // (e.g. an unexpected one escaping an async void event handler).
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         Application.ThreadException += (_, e) =>
         {
@@ -30,7 +29,7 @@ internal static class Program
                 MessageBox.Show((e.ExceptionObject as Exception)?.Message ?? "Unknown error",
                     "Unexpected error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            catch { /* nothing more we can do */ }
+            catch { }
         };
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, e) =>
         {
@@ -39,15 +38,12 @@ internal static class Program
         };
         Log.Write($"Prism started (v{typeof(Program).Assembly.GetName().Version}).");
 
-        // Wire up the services. Plaintext cookies live only inside AccountManager /
-        // RobloxWebApi for the moment of a request; on disk they're DPAPI-encrypted.
+        // ---- service wiring ----
         var store = new SecureStore();
         var api = new RobloxWebApi();
         var launcher = new RobloxLauncher(api);
         var accounts = new AccountManager(store, api, launcher);
 
-        // MainForm.OnLoad acquires the single-instance lock (idempotently) and reports
-        // status. launcher.Dispose() releases it on exit.
         using (api)
         using (launcher)
         {

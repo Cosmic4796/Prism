@@ -1,12 +1,8 @@
-/* Prism demo auto-tour — injected via ExecuteScriptAsync only when PRISM_DEMO is set.
-   Drives the REAL UI with scripted placeholder data (no backend, no real accounts).
-   Captured live via DevTools screencast (real frames, no interpolation).
-   Includes animated lower-third captions + an end card for a polished showcase. */
 (async () => {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const Q = s => document.querySelector(s);
 
-  // ---- caption / end-card overlay (styled to match Prism) -----------------
+  // ---- overlay ----
   const style = document.createElement('style');
   style.textContent = `
     #demo-cap{position:fixed;left:50%;bottom:52px;transform:translate(-50%,14px);z-index:900;
@@ -61,7 +57,6 @@
   }
   const hideCaption = () => cap.classList.remove('show');
 
-  // smooth, controllable scroll
   function smoothScroll(el, to, ms) {
     return new Promise(res => {
       const start = el.scrollTop, d = to - start, t0 = performance.now();
@@ -74,7 +69,7 @@
     });
   }
 
-  // ---- placeholder art (offline canvas gradients) -------------------------
+  // ---- placeholder art ----
   function avatar(name, c1, c2) {
     const s = 120, cv = document.createElement('canvas'); cv.width = cv.height = s;
     const x = cv.getContext('2d'), g = x.createLinearGradient(0, 0, s, s);
@@ -92,7 +87,7 @@
     x.fillText(emoji, s / 2, s / 2 + 6); return cv.toDataURL('image/png');
   }
 
-  // ---- placeholder data ---------------------------------------------------
+  // ---- data ----
   const ACCTS = [
     { userId: 1001, alias: 'MainGrind', username: 'MainGrind',  displayName: 'MainGrind', robux: 45120,  premium: true,  c1: '#7c6aff', c2: '#9d6bff' },
     { userId: 1002, alias: 'AltTrader', username: 'AltTrader2', displayName: 'AltTrader', robux: 8240,   premium: false, c1: '#5ab0ff', c2: '#22d3ee' },
@@ -123,7 +118,7 @@
     G('Trade Hangout',    '💱', 5240,    '#4ade9e', '#5ab0ff', 808530300),
   ];
 
-  // ---- helpers tied to the app's own functions ----------------------------
+  // ---- helpers ----
   function seedAccounts() {
     accounts = ACCTS.map(a => ({ ...a, health: undefined, robux: null, premium: false }));
     render();
@@ -149,7 +144,7 @@
   };
   const navTo = t => Q(`.nav[data-tab="${t}"]`).click();
 
-  // ===== choreography (brisk, readable, captioned) =========================
+  // ---- choreography ----
   setStatus(true, 'Multi-instance: ON');
   seedAccounts();
   logLine('Prism ready.');
@@ -163,7 +158,6 @@
   caption('Accounts', 'Every alt in one window');
   await sleep(1200);
 
-  // health checks -> Robux / Premium badges
   for (const a of ACCTS) { accounts.find(x => x.userId === a.userId).health = 'checking'; updateCardInfo(a.userId); }
   caption('At a glance', 'Live Robux, Premium & cookie health');
   await sleep(550);
@@ -182,7 +176,6 @@
   await smoothScroll(accts, 0, 1100);
   await sleep(500);
 
-  // select + launch
   caption('Launch', 'Drop them into the same server together');
   for (const id of [1001, 1003, 1006]) { selected.add(id); render(); await sleep(420); }
   logLine('3 accounts selected.');
@@ -197,7 +190,6 @@
   toast('3 clients launched', 'ok');
   await sleep(1500);
 
-  // Discover
   renderSections([{ title: 'Popular right now', games: POPULAR }, { title: 'Trading & economy', games: TRADING }]);
   discoverLoaded = true;
   navTo('discover');
@@ -217,12 +209,10 @@
   ] }]);
   await sleep(1700);
 
-  // Analytics
   navTo('analytics');
   caption('Analytics', 'Your grind, at a glance');
   await sleep(2400);
 
-  // Customize — themes & colors
   navTo('customize');
   caption('Customize', 'Themes & colors — make it yours');
   await sleep(800);
@@ -232,7 +222,6 @@
   if (rr) for (const v of [12, 16, 20, 14, 8]) { rr.value = v; rr.dispatchEvent(new Event('input')); await sleep(260); }
   await sleep(700);
 
-  // Settings — NEW: launch through your bootstrapper + Auto-rejoin
   navTo('settings');
   try { applyLaunchers([
     { kind: 'roblox', name: 'Roblox (official)', installed: true },
@@ -251,7 +240,6 @@
   toast('Auto-rejoin on — clients stay open', 'ok');
   await sleep(2000);
 
-  // back home, then end card
   hideCaption();
   navTo('accounts');
   await sleep(1100);

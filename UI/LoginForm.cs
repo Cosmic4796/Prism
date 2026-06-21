@@ -8,12 +8,6 @@ using RobloxMultiManager.Services;
 
 namespace RobloxMultiManager.UI;
 
-/// <summary>
-/// Logs into Roblox using an embedded browser (the REAL roblox.com login page, so
-/// passwords/2FA/captcha all work normally). When a valid session appears, it reads
-/// the HttpOnly .ROBLOSECURITY cookie straight from the browser's cookie store — no
-/// copy-paste. Each login starts from a clean session so you can add alt after alt.
-/// </summary>
 public sealed class LoginForm : Form
 {
     private readonly RobloxWebApi _api;
@@ -25,12 +19,11 @@ public sealed class LoginForm : Form
     private bool _checking;
     private bool _closing;
 
-    /// <summary>The captured .ROBLOSECURITY cookie (set only on a successful login).</summary>
     public string? CapturedCookie { get; private set; }
 
-    /// <summary>The authenticated user (set only on a successful login).</summary>
     public RobloxUser? User { get; private set; }
 
+    // ---- setup ----
     public LoginForm(RobloxWebApi api)
     {
         _api = api;
@@ -63,8 +56,6 @@ public sealed class LoginForm : Form
         Load += async (_, _) => await InitAsync();
         FormClosing += (_, _) =>
         {
-            // Make any in-flight capture/validate stop cooperatively instead of
-            // resuming on a disposed form.
             _closing = true;
             _poll.Stop();
             _cts.Cancel();
@@ -81,11 +72,11 @@ public sealed class LoginForm : Form
         base.Dispose(disposing);
     }
 
+    // ---- browser init ----
     private async Task InitAsync()
     {
         try
         {
-            // A dedicated, reusable profile folder kept out of the repo/roaming data.
             string udf = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "Prism", "login-webview");
@@ -96,7 +87,6 @@ public sealed class LoginForm : Form
             await _web.EnsureCoreWebView2Async();
             Log.Write("login: CoreWebView2 ready");
 
-            // Start logged-out every time so the next login is for a different alt.
             _web.CoreWebView2.CookieManager.DeleteAllCookies();
             _web.CoreWebView2.NavigationCompleted += async (_, _) => await TryCaptureAsync();
 
@@ -107,7 +97,6 @@ public sealed class LoginForm : Form
         catch (Exception ex)
         {
             Log.Exception("login.InitAsync", ex);
-            // Almost always: the WebView2 Runtime isn't installed.
             MessageBox.Show(this,
                 "Couldn't start the in-app browser. The Microsoft Edge WebView2 Runtime is required " +
                 "for in-app login.\n\nInstall it (free) from:\n" +
@@ -119,6 +108,7 @@ public sealed class LoginForm : Form
         }
     }
 
+    // ---- cookie capture ----
     private async Task TryCaptureAsync()
     {
         if (_captured || _checking || _closing || IsDisposed || _web.CoreWebView2 is null) return;
@@ -127,7 +117,7 @@ public sealed class LoginForm : Form
         {
             var cookies = await _web.CoreWebView2.CookieManager
                 .GetCookiesAsync("https://www.roblox.com");
-            if (_closing || IsDisposed) return; // user closed during the await
+            if (_closing || IsDisposed) return;
 
             CoreWebView2Cookie? sec = null;
             foreach (var c in cookies)
@@ -139,16 +129,14 @@ public sealed class LoginForm : Form
 
             string? value = sec?.Value;
             if (string.IsNullOrEmpty(value) || value.Length < 100)
-                return; // not logged in yet
+                return;
 
-            // Source of truth: confirm the cookie actually authenticates. Pass the
-            // cancellation token so closing the form aborts the in-flight request.
             RobloxUser? user;
             try { user = await _api.ValidateCookieAndGetUserAsync(value, _cts.Token); }
-            catch (RobloxApiException) { return; }          // transient; the timer will retry
-            catch (OperationCanceledException) { return; }  // form closing
+            catch (RobloxApiException) { return; }
+            catch (OperationCanceledException) { return; }
 
-            if (_closing || IsDisposed) return; // user closed during validation
+            if (_closing || IsDisposed) return;
             if (user is null) return;
 
             _captured = true;
@@ -161,7 +149,6 @@ public sealed class LoginForm : Form
         }
         catch
         {
-            // Any transient error: leave it for the next poll tick.
         }
         finally
         {

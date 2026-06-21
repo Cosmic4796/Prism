@@ -12,12 +12,7 @@ using RobloxMultiManager.Services;
 
 namespace RobloxMultiManager.UI;
 
-/// <summary>
-/// Prism's main window. The entire UI is a web app (UI/web/app.html) rendered in a
-/// full-window WebView2; this class is the host + the JSON bridge that connects the
-/// web UI's actions to the existing C# services. The web layer is purely presentation —
-/// all cookies/launching/encryption stay in the verified C# backend.
-/// </summary>
+// ---- shell + state ----
 public sealed class AppShell : Form
 {
     private readonly AccountManager _accounts;
@@ -30,8 +25,6 @@ public sealed class AppShell : Form
     private string _lockMessage = "";
     private bool _loginOpen;
 
-    // ----- demo capture (env-gated; off in normal use) ------------------------
-    // PRISM_DEMO=<frame output dir> turns on a scripted auto-tour + frame capture.
     private readonly string? _demoFrameDir = Environment.GetEnvironmentVariable("PRISM_DEMO");
     private readonly string? _demoScriptPath = Environment.GetEnvironmentVariable("PRISM_DEMO_SCRIPT");
     private bool Demo => !string.IsNullOrEmpty(_demoFrameDir);
@@ -47,19 +40,19 @@ public sealed class AppShell : Form
 
     private sealed class Stats
     {
-        public int Version { get; set; } = 2; // 1=totals only, 2=adds per-launch History
+        public int Version { get; set; } = 2;
         public int TotalLaunches { get; set; }
         public Dictionary<string, int> ByPlace { get; set; } = new();
         public Dictionary<string, int> ByAccount { get; set; } = new();
         public long LastPlaceId { get; set; }
-        public List<LaunchEntry> History { get; set; } = new(); // recent launches (bounded)
+        public List<LaunchEntry> History { get; set; } = new();
     }
 
     private sealed class LaunchEntry
     {
         public long PlaceId { get; set; }
         public long UserId { get; set; }
-        public string Time { get; set; } = ""; // ISO-8601 UTC
+        public string Time { get; set; } = "";
     }
 
     public AppShell(AccountManager accounts, RobloxLauncher launcher, RobloxWebApi api)
@@ -72,7 +65,7 @@ public sealed class AppShell : Form
         _closeToTray = _settings.GetValueOrDefault("closeToTray") == "1";
         _minimizeToTray = _settings.GetValueOrDefault("minimizeToTray") == "1";
         _autoRejoin = _settings.GetValueOrDefault("autoRejoin") == "1";
-        _rpEnabled = _settings.GetValueOrDefault("richPresence") != "0"; // on by default
+        _rpEnabled = _settings.GetValueOrDefault("richPresence") != "0";
         _launcher.Preferred = RobloxLauncher.ParseKind(_settings.GetValueOrDefault("launcher"));
         ApplyStartup(_settings.GetValueOrDefault("startWithWindows") == "1");
 
@@ -80,19 +73,18 @@ public sealed class AppShell : Form
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(900, 600);
         ClientSize = new Size(1100, 730);
-        if (Demo) ClientSize = new Size(1280, 720); // clean 16:9 for the demo video
-        FormBorderStyle = FormBorderStyle.None; // custom title bar lives in the web UI
+        if (Demo) ClientSize = new Size(1280, 720);
+        FormBorderStyle = FormBorderStyle.None;
         Theme.ApplyForm(this);
 
         _web = new WebView2 { Dock = DockStyle.Fill, DefaultBackgroundColor = Theme.Bg };
         Controls.Add(_web);
 
-        // Tell the web UI when maximize state changes (snap, double-click, drag-restore).
         Resize += (_, _) =>
         {
             if (WindowState == FormWindowState.Minimized) { _wasMin = true; if (_minimizeToTray) Hide(); return; }
-            ClipSquare(); // keep the square clip matching the new size
-            if (_wasMin) { _wasMin = false; Post(new { @event = "restored" }); } // let the UI animate back in
+            ClipSquare();
+            if (_wasMin) { _wasMin = false; Post(new { @event = "restored" }); }
             bool max = WindowState == FormWindowState.Maximized;
             if (max != _lastMax) { _lastMax = max; PushWinState(); }
         };
@@ -116,30 +108,27 @@ public sealed class AppShell : Form
         get { var v = typeof(AppShell).Assembly.GetName().Version; return v is null ? new Version(1, 0, 0) : new Version(v.Major, v.Minor, v.Build < 0 ? 0 : v.Build); }
     }
 
-    // ----- auto-rejoin / keep-alive -------------------------------------------
-    // Best-effort: protocol launches don't return a process handle, so we bind each
-    // launched account to a RobloxPlayerBeta PID by snapshotting the process list
-    // before/after launch. A timer watches the bound PIDs and relaunches any that exit.
     private bool _autoRejoin;
     private readonly List<KeepSession> _sessions = new();
     private readonly object _sessionLock = new();
     private System.Windows.Forms.Timer? _keepAliveTimer;
     private bool _keepAliveTicking;
-    private bool _keepTiled; // when on, re-tile whenever a client window (re)appears or closes
+    private bool _keepTiled;
 
     private sealed class KeepSession
     {
         public long UserId;
         public long PlaceId;
         public string? JobId, AccessCode, LinkCode;
-        public int Pid;       // 0 = not yet captured / just died
-        public bool Busy;     // a relaunch+capture is in flight
-        public int Failures;  // consecutive relaunch failures (give up after a few)
-        public string Alias = "";                 // for the running panel + window title
-        public IntPtr Hwnd;                       // the client's main window (label / tile)
-        public DateTime StartTime = DateTime.Now; // process start time (for uptime)
+        public int Pid;
+        public bool Busy;
+        public int Failures;
+        public string Alias = "";
+        public IntPtr Hwnd;
+        public DateTime StartTime = DateTime.Now;
     }
 
+    // ---- init ----
     private async Task InitAsync()
     {
         TryStyleWindow();
@@ -170,7 +159,6 @@ public sealed class AppShell : Form
         _web.CoreWebView2.WebMessageReceived += OnWebMessage;
         if (Demo) _web.CoreWebView2.NavigationCompleted += OnDemoNavCompleted;
 
-        // Reserve the singleton kernel objects ASAP so extra clients can launch.
         _lockMessage = _launcher.AcquireSingleInstanceLock();
         SetupTray();
         StartKeepAlive();
@@ -178,8 +166,7 @@ public sealed class AppShell : Form
         _web.CoreWebView2.NavigateToString(ReadAppHtml());
     }
 
-    // ----- message bridge -----------------------------------------------------
-
+    // ---- message bridge ----
     private async void OnWebMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
         string json;
@@ -200,7 +187,7 @@ public sealed class AppShell : Form
             switch (action)
             {
                 case "ready":
-                    if (Demo) { Reply(id, true); break; } // demo tour supplies its own data
+                    if (Demo) { Reply(id, true); break; }
                     Post(new { @event = "settings", settings = _settings });
                     Post(new { @event = "launchers", items = RobloxLauncher.Detect().Select(l => new { kind = l.Id, name = l.Name, installed = l.Installed }) });
                     SendStatus();
@@ -327,19 +314,12 @@ public sealed class AppShell : Form
         }
     }
 
-    // ----- actions ------------------------------------------------------------
-
+    // ---- actions ----
     private void DoLogin()
     {
-        // Guard against a second login window opening (e.g. a fast double-click): two
-        // LoginForms share one cookie profile and would clobber each other mid-login.
         if (_loginOpen) return;
         _loginOpen = true;
 
-        // IMPORTANT: defer to a fresh message-loop turn. This handler runs inside the main
-        // WebView2's WebMessageReceived callback; opening a modal dialog (nested message loop)
-        // AND creating a second WebView2 from there re-enters the runtime and deadlocks the
-        // login window on "Loading Roblox…". BeginInvoke runs after this callback unwinds.
         BeginInvoke(new Action(async () =>
         {
             try
@@ -406,7 +386,7 @@ public sealed class AppShell : Form
                     PushLog($"  ✗ {(string.IsNullOrWhiteSpace(alias) ? "(cookie)" : alias)}: {ex.Message}");
                     failed++;
                 }
-                await Task.Delay(250); // gentle on Roblox rate limits
+                await Task.Delay(250);
             }
             PushLog($"Import finished: {added} added, {failed} failed.");
             Toast($"Imported {added}" + (failed > 0 ? $", {failed} failed" : ""), failed > 0 ? "" : "ok");
@@ -474,6 +454,7 @@ public sealed class AppShell : Form
         return servers.Select(s => (object)new { jobId = s.JobId, playing = s.Playing, max = s.MaxPlayers, free = s.FreeSlots }).ToArray();
     }
 
+    // ---- launching ----
     private async Task DoLaunchAsync(JsonElement p)
     {
         var targets = TargetsFrom(p);
@@ -494,8 +475,6 @@ public sealed class AppShell : Form
         SetBusy(true);
         try
         {
-            // NEW share-link format: resolve the opaque code → place + private-server join info,
-            // using the first selected account's session.
             if (shareCode is not null)
             {
                 PushLog("Resolving Roblox share link…");
@@ -528,9 +507,6 @@ public sealed class AppShell : Form
             {
                 if (shareCode is not null)
                 {
-                    // New share links return a Roblox-authoritative private-server link code
-                    // (status "Valid"); launch straight with it. The old accessCode HTML-scrape
-                    // no longer works on the modern game page.
                     PushLog("Joining the private server via its share-link code…");
                 }
                 else
@@ -558,11 +534,8 @@ public sealed class AppShell : Form
                 PushLog($"Launching through {_launcher.ActiveLauncherLabel()}.");
             }
 
-            // Snapshot existing Roblox clients so we can tell which PIDs each launch spawns
-            // (powers the running panel, window labeling, tiling, and auto-rejoin).
             var preBatch = RobloxPidsSet();
 
-            // Remember this batch so "Relaunch last session" can reopen it.
             try
             {
                 _settings["lastSession"] = JsonSerializer.Serialize(new
@@ -596,11 +569,10 @@ public sealed class AppShell : Form
                     if (a.UserId is long ruid)
                         RegisterSession(ruid, a.DisplayName, placeId, jobId, accessCode, linkCode, preBatch);
 
-                    SaveStats(); // persist each successful launch so a crash mid-batch can't lose the lot
+                    SaveStats();
                 }
                 catch (Exception ex) { PushLog($"{a.Alias}: {ex.Message}"); }
 
-                // Bootstrappers serialize their own bootstrap + update pass, so give them more room.
                 if (i < targets.Count - 1) await Task.Delay(_launcher.UsesBootstrapper ? 3500 : 1800);
             }
             SaveStats();
@@ -609,13 +581,7 @@ public sealed class AppShell : Form
         finally { SetBusy(false); }
     }
 
-    // ----- auto-rejoin / keep-alive -------------------------------------------
-
-    /// <summary>
-    /// In-app update: download the latest Prism.exe next to the running one, then hand off to a
-    /// tiny batch that waits for us to exit, swaps the file, and relaunches. Falls back to opening
-    /// the download in the browser if we can't write here (e.g. installed under Program Files).
-    /// </summary>
+    // ---- self-update ----
     private async Task DoSelfUpdateAsync()
     {
         const string url = "https://github.com/Cosmic4796/Prism/releases/latest/download/Prism.exe";
@@ -624,7 +590,7 @@ public sealed class AppShell : Form
         try
         {
             if (string.IsNullOrEmpty(exe)) { OpenInBrowser(url); return; }
-            try { File.WriteAllText(newPath, ""); }                 // can we write next to the exe?
+            try { File.WriteAllText(newPath, ""); }
             catch { Toast("Can't auto-update from this folder — opening the download…", ""); OpenInBrowser(url); return; }
 
             Toast("Downloading update…", "");
@@ -663,6 +629,7 @@ public sealed class AppShell : Form
         Toast("Opened the download in your browser", "");
     }
 
+    // ---- keep-alive / sessions ----
     private void StartKeepAlive()
     {
         _keepAliveTimer = new System.Windows.Forms.Timer { Interval = 5000 };
@@ -670,8 +637,6 @@ public sealed class AppShell : Form
         _keepAliveTimer.Start();
     }
 
-    /// <summary>Tracks (or refreshes) a launched account and binds its new PID. Runs for
-    /// every launch (powers the running panel / labeling / tiling), not just auto-rejoin.</summary>
     private void RegisterSession(long userId, string alias, long placeId, string? jobId, string? accessCode, string? linkCode, HashSet<int> preExisting)
     {
         KeepSession s;
@@ -686,15 +651,8 @@ public sealed class AppShell : Form
         KeepSession AddSession(long uid) { var n = new KeepSession { UserId = uid }; _sessions.Add(n); return n; }
     }
 
-    /// <summary>
-    /// Polls for the RobloxPlayerBeta process this launch spawned and binds it to the
-    /// session. A candidate is any client that wasn't running before the launch and
-    /// isn't already claimed by another session; we prefer the most-recently-started.
-    /// </summary>
     private async Task CapturePidAsync(KeepSession s, HashSet<int> preExisting)
     {
-        // A first-run bootstrapper may download/extract a Roblox update before RobloxPlayerBeta
-        // appears, so give those launches a much longer window before giving up on the PID.
         int maxPolls = _launcher.UsesBootstrapper ? 75 : 25;
         for (int i = 0; i < maxPolls && !IsDisposed; i++)
         {
@@ -702,7 +660,7 @@ public sealed class AppShell : Form
             int picked = 0;
             lock (_sessionLock)
             {
-                if (!_sessions.Contains(s)) return; // session was cleared/removed
+                if (!_sessions.Contains(s)) return;
                 var claimed = _sessions.Where(x => x != s && x.Pid != 0).Select(x => x.Pid).ToHashSet();
                 int pick = 0; DateTime newest = DateTime.MinValue;
                 foreach (var (pid, started) in RobloxProcesses())
@@ -716,8 +674,6 @@ public sealed class AppShell : Form
         }
     }
 
-    /// <summary>Every few seconds: prune closed clients, keep their window titles applied,
-    /// push the running list to the UI, and — if auto-rejoin is on — reopen any that exited.</summary>
     private async Task KeepAliveTickAsync()
     {
         if (_keepAliveTicking || IsDisposed) return;
@@ -727,14 +683,12 @@ public sealed class AppShell : Form
         lock (_sessionLock)
         {
             dead = _sessions.Where(s => !s.Busy && s.Pid != 0 && !live.Contains(s.Pid)).ToList();
-            if (_autoRejoin) { foreach (var s in dead) s.Busy = true; }          // claim for relaunch
-            else { foreach (var s in dead) _sessions.Remove(s); dead.Clear(); }   // just untrack closed ones
+            if (_autoRejoin) { foreach (var s in dead) s.Busy = true; }
+            else { foreach (var s in dead) _sessions.Remove(s); dead.Clear(); }
         }
-        RelabelClients(live);   // Roblox overwrites titles once the game loads; re-apply
+        RelabelClients(live);
         PushClients();
 
-        // If we couldn't grab the multi-instance lock at startup (Roblox was open), keep trying —
-        // once every Roblox window is closed we can claim it, and the status flips to ON live.
         if (!_launcher.MultiInstanceActive && live.Count == 0)
         {
             _launcher.AcquireSingleInstanceLock();
@@ -775,13 +729,12 @@ public sealed class AppShell : Form
                 }
                 finally { s.Busy = false; }
 
-                if (dead.Count > 1) await Task.Delay(_launcher.UsesBootstrapper ? 3500 : 1500); // stagger multiple relaunches
+                if (dead.Count > 1) await Task.Delay(_launcher.UsesBootstrapper ? 3500 : 1500);
             }
         }
         finally { _keepAliveTicking = false; PushClients(); }
     }
 
-    /// <summary>Pushes the currently-tracked running clients (alias + start time) to the UI.</summary>
     private void PushClients()
     {
         object[] arr;
@@ -797,8 +750,7 @@ public sealed class AppShell : Form
         Post(new { @event = "clients", clients = arr, tiled = _keepTiled });
     }
 
-    /// <summary>Once a client's main window appears, title it "alias — Prism" so the taskbar
-    /// tells the alts apart.</summary>
+    // ---- window labeling / tiling ----
     private async Task LabelWindowAsync(KeepSession s, int pid)
     {
         for (int i = 0; i < 20 && !IsDisposed; i++)
@@ -812,16 +764,15 @@ public sealed class AppShell : Form
                 {
                     s.Hwnd = h;
                     try { SetWindowText(h, $"{s.Alias} — Prism"); } catch { }
-                    if (_keepTiled) TileClients(); // a (re)launched window appeared — re-snap the grid
+                    if (_keepTiled) TileClients();
                     return;
                 }
             }
-            catch { return; } // process gone
+            catch { return; }
             await Task.Delay(1000);
         }
     }
 
-    /// <summary>Re-applies window titles for live clients (Roblox resets them on load).</summary>
     private void RelabelClients(HashSet<int> live)
     {
         List<(IntPtr h, string alias)> items;
@@ -832,7 +783,6 @@ public sealed class AppShell : Form
             try { SetWindowText(h, $"{alias} — Prism"); } catch { }
     }
 
-    /// <summary>Arranges the running client windows into a grid on the primary monitor.</summary>
     private void TileClients()
     {
         List<IntPtr> hwnds;
@@ -856,7 +806,6 @@ public sealed class AppShell : Form
         PushLog($"Tiled {n} client(s).");
     }
 
-    /// <summary>Currently-running Roblox clients with their start times (best-effort).</summary>
     private static List<(int pid, DateTime started)> RobloxProcesses()
     {
         var list = new List<(int, DateTime)>();
@@ -869,7 +818,7 @@ public sealed class AppShell : Form
                 DateTime st; try { st = pr.StartTime; } catch { st = DateTime.MinValue; }
                 list.Add((pr.Id, st));
             }
-            catch { /* process vanished between enumerate and read */ }
+            catch { }
             finally { try { pr.Dispose(); } catch { } }
         }
         return list;
@@ -877,8 +826,7 @@ public sealed class AppShell : Form
 
     private static HashSet<int> RobloxPidsSet() => RobloxProcesses().Select(p => p.pid).ToHashSet();
 
-    // ----- demo capture -------------------------------------------------------
-
+    // ---- demo capture ----
     private void OnDemoNavCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
         _web.CoreWebView2.NavigationCompleted -= OnDemoNavCompleted;
@@ -892,8 +840,6 @@ public sealed class AppShell : Form
             Show(); WindowState = FormWindowState.Normal; TopMost = true; Activate();
             try { Directory.CreateDirectory(_demoFrameDir!); } catch { }
 
-            // DevTools screencast: Chromium pushes a real PNG frame on every repaint
-            // (up to display rate during motion). Genuine frames — no interpolation.
             var rcv = _web.CoreWebView2.GetDevToolsProtocolEventReceiver("Page.screencastFrame");
             rcv.DevToolsProtocolEventReceived += OnScreencastFrame;
             await _web.CoreWebView2.CallDevToolsProtocolMethodAsync("Page.enable", "{}");
@@ -926,7 +872,6 @@ public sealed class AppShell : Form
             _scTimes.Add($"{idx} {ts:0.######}");
         }
         catch { }
-        // Ack so Chromium keeps streaming the next frame.
         try { await _web.CoreWebView2.CallDevToolsProtocolMethodAsync("Page.screencastFrameAck", $"{{\"sessionId\":{sid ?? "0"}}}"); } catch { }
     }
 
@@ -940,8 +885,7 @@ public sealed class AppShell : Form
         if (!IsDisposed) BeginInvoke(new Action(() => { _allowExit = true; TopMost = false; Close(); }));
     }
 
-    // ----- helpers ------------------------------------------------------------
-
+    // ---- helpers ----
     private List<Account> TargetsFrom(JsonElement p)
     {
         var ids = new HashSet<long>();
@@ -981,7 +925,6 @@ public sealed class AppShell : Form
                 _ = ResolveAvatarAsync(uid);
     }
 
-    /// <summary>Validates every account (auto-refreshing cookies) and fetches Robux/Premium, staggered.</summary>
     private async Task RefreshAllInfoAsync()
     {
         if (_infoRunning) return;
@@ -1021,8 +964,6 @@ public sealed class AppShell : Form
         }
     }
 
-    /// <summary>Checks GitHub for a newer release; posts an "update" event if found.
-    /// Set the PRISM_FORCE_UPDATE env var to simulate one (for testing the update UI).</summary>
     private async Task CheckUpdatesAsync(bool auto)
     {
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PRISM_FORCE_UPDATE")))
@@ -1038,7 +979,7 @@ public sealed class AppShell : Form
                 Post(new { @event = "update", version = info.Version, url = info.Url, notes = info.Notes });
         }
         catch { }
-        _ = auto; // (reserved: could differ later for manual vs auto)
+        _ = auto;
     }
 
     private async Task ResolveAvatarAsync(long userId)
@@ -1056,7 +997,6 @@ public sealed class AppShell : Form
         text = _launcher.MultiInstanceActive ? "Multi-instance: ON" : "Multi-instance: OFF",
     });
 
-    /// <summary>Refreshes Discord Rich Presence: top line = account count, bottom = current page.</summary>
     private void ApplyPresence(string? page)
     {
         if (!_rpEnabled) return;
@@ -1081,20 +1021,19 @@ public sealed class AppShell : Form
     private void Post(object payload)
     {
         string json = JsonSerializer.Serialize(payload);
-        void Send() { try { _web.CoreWebView2?.PostWebMessageAsString(json); } catch { /* shutting down */ } }
+        void Send() { try { _web.CoreWebView2?.PostWebMessageAsString(json); } catch { } }
         try
         {
             if (_web.IsDisposed) return;
             if (_web.InvokeRequired) _web.BeginInvoke(Send);
             else Send();
         }
-        catch { /* form closing */ }
+        catch { }
     }
 
     private static string Short(string jobId) => jobId.Length <= 8 ? jobId : jobId[..8] + "…";
 
-    // ----- frameless window controls ------------------------------------------
-
+    // ---- frameless window controls ----
     private void DoWindow(JsonElement p)
     {
         switch (Str(p, "op"))
@@ -1127,12 +1066,8 @@ public sealed class AppShell : Form
 
     private void TryStyleWindow()
     {
-        // Ask DWM for square corners + no border highlight…
         try { int pref = 1; DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int)); } catch { }
         try { int none = unchecked((int)0xFFFFFFFE); DwmSetWindowAttribute(Handle, DWMWA_BORDER_COLOR, ref none, sizeof(int)); } catch { }
-        // …and force it: clip the window to a rectangle so Win11 can't round the
-        // corners (a rounded corner is transparent and shows the desktop behind it
-        // as a stray "dot"). Must be re-applied whenever the window size changes.
         ClipSquare();
     }
 
@@ -1159,7 +1094,7 @@ public sealed class AppShell : Form
         WindowState = FormWindowState.Normal;
         Activate();
         BringToFront();
-        Post(new { @event = "restored" }); // reset any minimizing/closing animation state
+        Post(new { @event = "restored" });
     }
 
     private static void ApplyStartup(bool on)
@@ -1172,21 +1107,17 @@ public sealed class AppShell : Form
             if (on) key.SetValue("Prism", $"\"{Application.ExecutablePath}\"");
             else key.DeleteValue("Prism", throwOnMissingValue: false);
         }
-        catch { /* registry access denied — non-fatal */ }
+        catch { }
     }
 
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
-        // Re-apply once the window is actually displayed — Win11 applies its default
-        // corner rounding on show, which can override an earlier square-corners request
-        // (a rounded corner is transparent and reveals whatever is behind it as a "dot").
         TryStyleWindow();
     }
 
     protected override void WndProc(ref Message m)
     {
-        // A borderless form maximizes over the taskbar; clamp it to the work area.
         if (m.Msg == WM_GETMINMAXINFO)
         {
             var scr = Screen.FromHandle(Handle);
@@ -1201,6 +1132,7 @@ public sealed class AppShell : Form
         base.WndProc(ref m);
     }
 
+    // ---- win32 interop ----
     private const int WM_NCLBUTTONDOWN = 0x00A1;
     private const int HTCAPTION = 2;
     private const int WM_GETMINMAXINFO = 0x0024;
@@ -1230,15 +1162,12 @@ public sealed class AppShell : Form
         p.ValueKind == JsonValueKind.Object && p.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number && v.TryGetInt64(out var n)
             ? n : 0;
 
-    /// <summary>Parses the private-server box: a new share link/code, an old share link, a bare link code, or an access-code GUID.</summary>
+    // ---- private-server parsing ----
     private static (long? placeId, string? linkCode, string? accessCode, string? shareCode, bool unsupported) ParsePrivate(string raw)
     {
         raw = (raw ?? "").Trim();
         if (raw.Length == 0) return (null, null, null, null, false);
 
-        // NEW share-link format: roblox.com/share?code=<32 hex>&type=Server (also /share-links?code=…,
-        // the roblox://navigation/share_links?code=… deep link, or a bare 32-hex code). The 32-hex code
-        // is resolved to a place + private server via the sharelinks API at launch time.
         var sc = Regex.Match(raw, @"(?:[?&]code=|share_links\?code=)([0-9a-fA-F]{32})", RegexOptions.IgnoreCase);
         if (sc.Success) return (null, null, null, sc.Groups[1].Value, false);
         if (Regex.IsMatch(raw, @"^[0-9a-fA-F]{32}$")) return (null, null, null, raw, false);
@@ -1255,6 +1184,7 @@ public sealed class AppShell : Form
         return (null, null, null, null, true);
     }
 
+    // ---- discover + stats ----
     private async Task<object> BuildDiscoverAsync()
     {
         var sorts = await _api.GetDiscoverSortsAsync();
@@ -1338,8 +1268,6 @@ public sealed class AppShell : Form
             topGames,
             topAccounts,
             recent,
-            // True when totals exist but the per-launch timeline doesn't — i.e. launches
-            // from before the History feature shipped. Lets the UI show honest copy.
             historyGap = _stats.TotalLaunches > 0 && _stats.History.Count == 0,
         };
     }
@@ -1356,8 +1284,7 @@ public sealed class AppShell : Form
         return $"{(int)d.TotalDays}d ago";
     }
 
-    // ----- custom background image --------------------------------------------
-
+    // ---- background image ----
     private void PickBackground()
     {
         using var dlg = new OpenFileDialog { Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif", Title = "Choose a background image" };
@@ -1387,7 +1314,6 @@ public sealed class AppShell : Form
         catch (Exception ex) { Toast("Couldn't load an image from that link", "err"); Log.Exception("setBackgroundUrl", ex); }
     }
 
-    /// <summary>Downscale a loaded image to &lt;=1920x1080, save it as the background, persist + apply.</summary>
     private void SaveBackgroundFromImage(System.Drawing.Image src)
     {
         string outPath = Path.Combine(AppData.Dir, "background.jpg");
@@ -1430,6 +1356,7 @@ public sealed class AppShell : Form
         Toast("Background cleared", "ok");
     }
 
+    // ---- persistence ----
     private void LoadStats()
     {
         try
@@ -1447,7 +1374,7 @@ public sealed class AppShell : Form
             Directory.CreateDirectory(Path.GetDirectoryName(_statsPath)!);
             File.WriteAllText(_statsPath, JsonSerializer.Serialize(_stats));
         }
-        catch { /* non-fatal */ }
+        catch { }
     }
 
     private void LoadSettings()
@@ -1467,7 +1394,7 @@ public sealed class AppShell : Form
             Directory.CreateDirectory(Path.GetDirectoryName(_settingsPath)!);
             File.WriteAllText(_settingsPath, JsonSerializer.Serialize(_settings));
         }
-        catch { /* non-fatal: settings just won't persist */ }
+        catch { }
     }
 
     private static string ReadAppHtml()

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prism — Free Roblox Multi-Account Launcher</title>
+<meta name="description" content="Prism is a free, open-source Roblox account manager: run multiple accounts at once, launch all your alts in one click, works with Bloxstrap/Fishstrap/Froststrap. Your cookies never leave your PC.">
+<style>
+  :root{--accent:#7c6aff;--accent2:#9d6bff;--pink:#ec4899;--bg:#0a0b10;--card:#14151c;--line:rgba(255,255,255,.09);--text:#eceef2;--sub:#9aa0ab;--ok:#4ade9e}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif}
+  body{background:radial-gradient(1100px 640px at 80% -10%,rgba(124,106,255,.20),transparent 60%),radial-gradient(800px 600px at -5% 110%,rgba(157,107,255,.12),transparent 55%),var(--bg);color:var(--text);line-height:1.6}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+  a{color:var(--accent2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .btn{display:inline-flex;align-items:center;gap:9px;padding:13px 22px;border-radius:12px;font-weight:700;font-size:15px;border:1px solid var(--line);background:#1b1d26;color:#fff;cursor:pointer;transition:.15s}
+  .btn:hover{text-decoration:none;transform:translateY(-1px)}
+  .btn.solid{background:linear-gradient(95deg,var(--accent),var(--accent2));border:0}
+  .pill{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent2);background:rgba(124,106,255,.12);border:1px solid rgba(124,106,255,.3);border-radius:999px;padding:4px 12px}
+  /* nav */
+  nav{position:sticky;top:0;backdrop-filter:blur(12px);background:rgba(10,11,16,.6);border-bottom:1px solid var(--line);z-index:10}
+  nav .wrap{display:flex;align-items:center;gap:18px;height:58px}
+  nav .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+  nav .brand b{background:linear-gradient(95deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  nav .sp{flex:1}
+  nav a{color:var(--sub);font-weight:600;font-size:14px}
+  /* hero */
+  header{text-align:center;padding:74px 0 50px}
+  header .tri{width:64px;height:64px;margin-bottom:18px}
+  h1{font-size:46px;font-weight:850;letter-spacing:-1px;line-height:1.1}
+  h1 b{background:linear-gradient(95deg,var(--accent),var(--accent2) 55%,var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+  header p{color:var(--sub);font-size:18px;max-width:620px;margin:16px auto 28px}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .shot{width:100%;border-radius:16px;border:1px solid var(--line);margin-top:48px;box-shadow:0 40px 90px -30px rgba(0,0,0,.8)}
+  /* sections */
+  section{padding:46px 0;border-top:1px solid var(--line)}
+  h2{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px}
+  .lead{color:var(--sub);margin-bottom:26px;max-width:680px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+  .feat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .feat .ic{font-size:22px}
+  .feat h3{font-size:16px;margin:8px 0 4px}
+  .feat p{color:var(--sub);font-size:14px}
+  .shots{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .shots img{width:100%;border-radius:12px;border:1px solid var(--line)}
+  .safe{background:linear-gradient(180deg,rgba(74,222,158,.07),transparent);border:1px solid rgba(74,222,158,.25);border-radius:16px;padding:24px}
+  .safe h2{color:var(--ok)}
+  .safe ul{margin:12px 0 0 20px}
+  .safe li{margin:7px 0}
+  pre{background:#0c0d12;border:1px solid var(--line);border-radius:12px;padding:16px;overflow:auto;font:13px Consolas,monospace;color:#cfd3da;margin:10px 0}
+  pre .c{color:#6b7280}
+  ol.steps{margin-left:18px}
+  ol.steps li{margin:10px 0}
+  footer{text-align:center;color:var(--sub);font-size:14px;padding:40px 0;border-top:1px solid var(--line)}
+  @media(max-width:640px){h1{font-size:34px}.shots{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <div class="brand">
+    <svg class="tri" width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 3 21 19 3 19Z" stroke="url(#g)" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 14 13 9" stroke="#fff" stroke-width="1.2"/><path d="M13 9 19 12" stroke="#ec4899" stroke-width="1"/><path d="M13 9 19 15" stroke="#4ade9e" stroke-width="1"/><defs><linearGradient id="g" x1="0" y1="0" x2="24" y2="24"><stop stop-color="#7c6aff"/><stop offset="1" stop-color="#9d6bff"/></linearGradient></defs></svg>
+    <span>Pris<b>m</b></span>
+  </div>
+  <div class="sp"></div>
+  <a href="#features">Features</a>
+  <a href="#build">Build it yourself</a>
+  <a href="#safe">Is it safe?</a>
+  <a href="https://github.com/Cosmic4796/Prism">GitHub</a>
+</div></nav>
+
+<header><div class="wrap">
+  <span class="pill">Free &amp; open source</span>
+  <h1 style="margin-top:14px">Run all your <b>Roblox accounts</b> at once</h1>
+  <p>Prism is a free, open-source account manager for Roblox. Launch your whole lineup in one click, drop every alt into the same server, and manage it all from one window.</p>
+  <div class="cta">
+    <a class="btn solid" href="https://github.com/Cosmic4796/Prism/releases/latest/download/Prism.exe">⬇ Download Prism</a>
+    <a class="btn" href="https://discord.gg/CZNm9B8JqY">💬 Join the Discord</a>
+  </div>
+  <img class="shot" src="https://raw.githubusercontent.com/Cosmic4796/Prism/main/assets/hero.png" alt="Prism screenshot" onerror="this.style.display='none'">
+</div></header>
+
+<!-- features -->
+<section id="features"><div class="wrap">
+  <h2>What it does</h2>
+  <p class="lead">Everything you need to run a fleet of accounts, without the hassle.</p>
+  <div class="grid">
+    <div class="feat"><div class="ic">🔁</div><h3>Multi-instance</h3><p>Run as many Roblox clients at the same time as you want.</p></div>
+    <div class="feat"><div class="ic">⚡</div><h3>One-click launch</h3><p>Tick your accounts, pick a place, and launch them all together.</p></div>
+    <div class="feat"><div class="ic">🤝</div><h3>Same-server join</h3><p>Land every alt in the same server — perfect for trading with yourself.</p></div>
+    <div class="feat"><div class="ic">🧩</div><h3>Bootstrapper support</h3><p>Launch through Bloxstrap, Fishstrap or Froststrap, or the official client.</p></div>
+    <div class="feat"><div class="ic">🔐</div><h3>Cookie or sign-in</h3><p>Log in with Roblox in-app, or paste a cookie. No passwords stored.</p></div>
+    <div class="feat"><div class="ic">📊</div><h3>Analytics &amp; Discover</h3><p>Track launches, browse games, and see each account at a glance.</p></div>
+    <div class="feat"><div class="ic">🎨</div><h3>Customizable</h3><p>Themes, accents and layout tweaks to make it yours.</p></div>
+    <div class="feat"><div class="ic">🔄</div><h3>Auto-updates</h3><p>Prism updates itself from inside the app — no reinstalling.</p></div>
+  </div>
+  <div class="shots" style="margin-top:22px">
+    <img src="https://raw.githubusercontent.com/Cosmic4796/Prism/main/assets/accounts.png" alt="Accounts" onerror="this.style.display='none'">
+    <img src="https://raw.githubusercontent.com/Cosmic4796/Prism/main/assets/discover.png" alt="Discover" onerror="this.style.display='none'">
+    <img src="https://raw.githubusercontent.com/Cosmic4796/Prism/main/assets/analytics.png" alt="Analytics" onerror="this.style.display='none'">
+    <img src="https://raw.githubusercontent.com/Cosmic4796/Prism/main/assets/settings.png" alt="Settings" onerror="this.style.display='none'">
+  </div>
+</div></section>
+
+<!-- safety -->
+<section id="safe"><div class="wrap">
+  <div class="safe">
+    <h2>🛡️ Is it safe? Yes — and you can verify it</h2>
+    <p>Prism handles your Roblox login, so trust matters. That's exactly why it's <b>open source</b>: read every line, or build it yourself.</p>
+    <ul>
+      <li><b>Your cookie never leaves your PC.</b> It's stored locally, encrypted with Windows DPAPI (tied to your user account), and only ever sent to Roblox's own official login API to start the game.</li>
+      <li><b>No telemetry, no servers.</b> Prism doesn't phone home. There's no backend that could collect anything.</li>
+      <li><b>100% open source (MIT).</b> The full source is on GitHub — audit it or compile it yourself and compare.</li>
+      <li><b>About antivirus flags:</b> Prism is an unsigned .NET app that reads your Roblox cookie and updates itself, which some heuristic scanners false-flag. Microsoft Defender and the vast majority of engines read it clean. When in doubt, build it yourself below.</li>
+    </ul>
+  </div>
+</div></section>
+
+<!-- build -->
+<section id="build"><div class="wrap">
+  <h2>Build it yourself</h2>
+  <p class="lead">Don't trust a binary? Compile Prism from source in two commands and get the exact same app.</p>
+  <p style="color:var(--sub);font-size:14px"><b>You'll need:</b> Windows 10/11, the <a href="https://dotnet.microsoft.com/download/dotnet/8.0">.NET 8 SDK</a>, and the <a href="https://developer.microsoft.com/microsoft-edge/webview2/">WebView2 runtime</a> (already on most Windows 11) to run it.</p>
+  <ol class="steps">
+    <li>Clone the repo:
+<pre>git clone https://github.com/Cosmic4796/Prism.git
+cd Prism</pre></li>
+    <li>Publish a self-contained single-file build:
+<pre>dotnet publish -c Release -r win-x64 --self-contained true ^
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true</pre></li>
+    <li>Your <code>Prism.exe</code> is here:
+<pre>bin\Release\net8.0-windows\win-x64\publish\Prism.exe</pre></li>
+  </ol>
+  <p style="color:var(--sub);font-size:14px">That's the same build process used for the official release — so you can confirm the download matches the source.</p>
+</div></section>
+
+<footer>
+  <p>Prism is free and open source under the MIT license · <a href="https://github.com/Cosmic4796/Prism">Source on GitHub</a> · <a href="https://discord.gg/CZNm9B8JqY">Discord</a></p>
+  <p style="margin-top:6px;font-size:12px">Not affiliated with or endorsed by Roblox Corporation.</p>
+</footer>
+</body>
+</html>
