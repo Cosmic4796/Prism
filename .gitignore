@@ -18,6 +18,7 @@ releases/
 build-demo.ps1
 *.mp4
 *.gif
+!assets/demo.gif
 .vs/
 
 # Secrets / local state
