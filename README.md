@@ -10,9 +10,12 @@ Free and **open source**. Grind with your alts, drop them into the **same server
 
 [![Download](https://img.shields.io/badge/⬇_Download-Prism.exe-7c6aff?style=for-the-badge)](https://github.com/Cosmic4796/Prism/releases/latest/download/Prism.exe)
 &nbsp;
+[![Website](https://img.shields.io/badge/🌐_Website-9d6bff?style=for-the-badge)](https://cosmic4796.github.io/Prism)
+&nbsp;
 [![Discord](https://img.shields.io/badge/Discord-Support-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/CZNm9B8JqY)
 
-[Website](https://cosmic4796.github.io/Prism) ·
+🛡️ **[Is it safe? → read the proof](IS-IT-SAFE.md)**
+
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6?logo=windows) ·
 ![License](https://img.shields.io/badge/license-MIT-green) ·
 ![Downloads](https://img.shields.io/github/downloads/Cosmic4796/Prism/total)
