@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prism — Roblox Multi-Account Launcher</title>
+<meta name="description" content="Prism is a free, open-source Roblox account manager: run multiple accounts at once and launch your alts in one click. Your cookies never leave your PC.">
+<style>
+  :root{--accent:#7c6aff;--bg:#0e0f13;--fg:#e7e8ea;--muted:#9aa0ab;--line:#23252c;--card:#16171c}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,Segoe UI,system-ui,sans-serif}
+  .wrap{max-width:720px;margin:0 auto;padding:0 20px}
+  a{color:var(--accent)}
+  h1{font-size:30px;margin:0 0 6px}
+  h2{font-size:20px;margin:38px 0 10px;padding-top:24px;border-top:1px solid var(--line)}
+  p{color:var(--fg)}
+  .sub{color:var(--muted);margin-top:0}
+  header{padding:54px 0 8px}
+  .btns{margin:22px 0 6px}
+  .btn{display:inline-block;padding:10px 18px;border:1px solid var(--line);border-radius:8px;color:var(--fg);text-decoration:none;margin:0 8px 8px 0}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  ul{padding-left:20px}
+  li{margin:5px 0}
+  code,pre{font-family:Consolas,ui-monospace,monospace}
+  pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;font-size:13.5px;color:#cfd3da}
+  code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:13.5px}
+  .note{color:var(--muted);font-size:14px}
+  footer{margin:48px 0 40px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Prism</h1>
+    <p class="sub">A free, open-source Roblox account manager. Run multiple accounts at once and launch all your alts in one click.</p>
+    <div class="btns">
+      <a class="btn primary" href="https://github.com/Cosmic4796/Prism/releases/latest/download/Prism.exe">Download</a>
+      <a class="btn" href="https://github.com/Cosmic4796/Prism">GitHub</a>
+      <a class="btn" href="https://discord.gg/CZNm9B8JqY">Discord</a>
+    </div>
+  </header>
+
+  <h2>Features</h2>
+  <ul>
+    <li>Run multiple Roblox accounts at the same time (multi-instance)</li>
+    <li>Launch all your selected accounts in one click</li>
+    <li>Join the same server with every account</li>
+    <li>Works with Bloxstrap, Fishstrap, Froststrap, or the official client</li>
+    <li>Log in with Roblox or paste a cookie — no passwords stored</li>
+    <li>Auto-updates from inside the app</li>
+  </ul>
+
+  <h2>Is it safe?</h2>
+  <p>Prism handles your Roblox login, so it's open source — you can read every line or build it yourself.</p>
+  <ul>
+    <li>Your cookie stays on your PC, encrypted with Windows DPAPI. It's only ever sent to Roblox's own login API to start the game.</li>
+    <li>No telemetry and no servers — Prism doesn't phone home.</li>
+    <li>It's unsigned, so some antivirus engines may show a heuristic false positive. If unsure, build it yourself below.</li>
+  </ul>
+
+  <h2>Build it yourself</h2>
+  <p class="note">Needs Windows, the <a href="https://dotnet.microsoft.com/download/dotnet/8.0">.NET 8 SDK</a>, and the <a href="https://developer.microsoft.com/microsoft-edge/webview2/">WebView2 runtime</a> to run.</p>
+  <pre>git clone https://github.com/Cosmic4796/Prism.git
+cd Prism
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true</pre>
+  <p>The exe ends up at <code>bin\Release\net8.0-windows\win-x64\publish\Prism.exe</code> — the same build the release uses.</p>
+
+  <footer>
+    Free and open source under the MIT license. Not affiliated with Roblox Corporation.
+  </footer>
+
+</div>
+</body>
+</html>

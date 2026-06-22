@@ -1,0 +1,39 @@
+# Build output
+bin/
+obj/
+*.user
+
+# Publish
+publish/
+*.zip
+
+# Accounts live in %APPDATA%, never in the repo — but guard anyway.
+accounts.json
+*.tmp
+
+# Kept private (not part of the open-source app)
+bot/
+discord/
+releases/
+build-demo.ps1
+*.mp4
+*.gif
+!assets/demo.gif
+.vs/
+
+# Secrets / local state
+.env
+*.env
+state.json
+ids.json
+
+# Promo / personal assets + planning docs (not part of the public app)
+ROADMAP.md
+/prism.png
+/prism-pfp.png
+/prism-event-banner.png
+/Prism-youtube-banner.png
+/bg9x16.png
+assets/event-banner.png
+assets/pfp.png
+assets/logo-rp.png
