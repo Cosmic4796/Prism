@@ -8,8 +8,8 @@ public sealed record CommunityEvent(string Id, string Title, long PlaceId, strin
 // ---- community events feed ----
 public sealed class EventsService : IDisposable
 {
-    // events feed endpoint (the official build points at the Prism server; self-hosters set their own)
-    private const string Feed = "https://example.com/api/events";
+    // community events feed (the Prism server; self-hosters can point this elsewhere)
+    private const string Feed = "https://downloadprism.xyz/api/events";
 
     private readonly HttpClient _http;
 
