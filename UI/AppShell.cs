@@ -90,7 +90,7 @@ public sealed class AppShell : Form
         };
 
         FormClosing += (_, e) => { if (_closeToTray && !_allowExit) { e.Cancel = true; Hide(); } };
-        FormClosed += (_, _) => { try { _tray?.Dispose(); } catch { } try { _keepAliveTimer?.Dispose(); } catch { } try { _updater.Dispose(); } catch { } try { _rp.Dispose(); } catch { } };
+        FormClosed += (_, _) => { try { _tray?.Dispose(); } catch { } try { _keepAliveTimer?.Dispose(); } catch { } try { _updater.Dispose(); } catch { } try { _events.Dispose(); } catch { } try { _rp.Dispose(); } catch { } };
 
         Load += async (_, _) => await InitAsync();
     }
@@ -100,7 +100,9 @@ public sealed class AppShell : Form
     private NotifyIcon? _tray;
     private bool _closeToTray, _minimizeToTray, _allowExit;
     private readonly UpdateChecker _updater = new();
+    private readonly EventsService _events = new();
     private readonly RichPresenceService _rp = new();
+    private string? _pendingDeepLink;
     private bool _rpEnabled;
 
     private static Version CurrentVersion
@@ -203,6 +205,7 @@ public sealed class AppShell : Form
                     _ = RefreshAllInfoAsync();
                     StartAutoRefresh();
                     _ = CheckUpdatesAsync(auto: true);
+                    if (_pendingDeepLink is { } dl) { _pendingDeepLink = null; RouteDeepLink(dl); }
                     Reply(id, true);
                     break;
                 case "loginRoblox": DoLogin(); Reply(id, true); break;
@@ -303,6 +306,12 @@ public sealed class AppShell : Form
                         else PushLog("Auto-tile off — windows left where they are.");
                         PushClients();
                         Reply(id, true); break;
+                    }
+                case "events.list":
+                    {
+                        var evs = await _events.FetchAsync();
+                        Reply(id, true, new { events = evs.Select(e => new { id = e.Id, title = e.Title, placeId = e.PlaceId, game = e.Game, description = e.Description, start = e.Start, host = e.Host, link = e.Link, jobId = e.JobId, privateLink = e.PrivateLink }) });
+                        break;
                     }
                 default: Reply(id, false, null, "Unknown action: " + action); break;
             }
@@ -1016,6 +1025,37 @@ public sealed class AppShell : Form
     private void PushLog(string message) => Post(new { @event = "log", message });
     private void SetBusy(bool on) => Post(new { @event = "busy", on });
     private void Toast(string message, string kind) => Post(new { @event = "toast", message, kind });
+    // ---- prism:// deep links ----
+    public void SetInitialDeepLink(string url) => _pendingDeepLink = url;
+
+    // called from the named-pipe thread when another launch hands us a link (or "focus")
+    public void OnDeepLink(string msg)
+    {
+        try { if (IsHandleCreated) BeginInvoke(new Action(() => RouteDeepLink(msg))); else _pendingDeepLink = msg; }
+        catch { }
+    }
+
+    private void RouteDeepLink(string msg)
+    {
+        BringToFrontHard();
+        if (string.IsNullOrEmpty(msg) || msg == "focus") return;
+        // prism://events , prism://events?e=<id> , prism://join/...  -> open the Events tab
+        if (msg.StartsWith("prism://", StringComparison.OrdinalIgnoreCase))
+            Post(new { @event = "navigate", tab = "events" });
+    }
+
+    private void BringToFrontHard()
+    {
+        try
+        {
+            if (!Visible) Show();
+            if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+            Activate();
+            TopMost = true; TopMost = false;
+        }
+        catch { }
+    }
+
     private void Reply(int id, bool ok, object? result = null, string? error = null) => Post(new { id, ok, result, error });
 
     private void Post(object payload)

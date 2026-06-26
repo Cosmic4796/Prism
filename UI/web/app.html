@@ -168,6 +168,15 @@ option,optgroup{background:#1c1e28;color:var(--text)}
 .gcard .gi{padding:9px 10px}.gcard .gn{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gcard .gp{font-size:11px;color:var(--sub);margin-top:3px;display:flex;align-items:center;gap:5px}.gcard .gp .live{width:6px;height:6px;border-radius:50%;background:var(--ok)}
 
+.evbar{display:flex;align-items:center;gap:12px;padding:10px 20px 4px}.evbar .muted{flex:1;padding:0}
+.evcard{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);padding:15px 17px;margin-bottom:12px;-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));animation:pop .25s both}
+.evcard .et{font-size:15px;font-weight:700;display:flex;align-items:center;gap:9px}
+.evcard .ew{font-size:12px;font-weight:600;color:var(--accent2);margin-top:4px}
+.evcard .em{font-size:12px;color:var(--sub);margin-top:6px;display:flex;flex-wrap:wrap;gap:3px 15px}
+.evcard .ed{font-size:12.5px;color:var(--text);margin-top:10px;line-height:1.5;white-space:pre-wrap}
+.evcard .ea{display:flex;gap:9px;margin-top:14px}
+.evlive{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--onAccent);background:var(--grad);border-radius:6px;padding:2px 8px}
+
 .rz{position:fixed;z-index:560}
 .rz.n{top:0;left:10px;right:10px;height:6px;cursor:ns-resize}.rz.s{bottom:0;left:10px;right:10px;height:6px;cursor:ns-resize}
 .rz.w{left:0;top:10px;bottom:10px;width:6px;cursor:ew-resize}.rz.e{right:0;top:10px;bottom:10px;width:6px;cursor:ew-resize}
@@ -221,6 +230,7 @@ option,optgroup{background:#1c1e28;color:var(--text)}
     </div>
     <div class="nav on" data-tab="accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/></svg><span data-i18n="nav.accounts">Accounts</span></div>
     <div class="nav" data-tab="discover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.3 4.7-4.7 2.3 2.3-4.7z"/></svg><span data-i18n="nav.discover">Discover</span></div>
+    <div class="nav" data-tab="events"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span data-i18n="nav.events">Events</span></div>
     <div class="nav" data-tab="analytics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span data-i18n="nav.analytics">Analytics</span></div>
     <div class="nav" data-tab="customize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="7" r="1.2"/><circle cx="17" cy="11" r="1.2"/><circle cx="8" cy="7.5" r="1.2"/><circle cx="6.5" cy="12.5" r="1.2"/><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-.9-.5-1.3-.3-.3-.5-.7-.5-1.2 0-1.1.9-2 2-2h2.3A4.7 4.7 0 0 0 22 10.7C22 6 17.5 2 12 2z"/></svg><span data-i18n="nav.customize">Customize</span></div>
     <div class="nav" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.2A1.7 1.7 0 0 0 6 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 13H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 6L4.5 6a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.6V4a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4Z"/></svg><span data-i18n="nav.settings">Settings</span></div>
@@ -267,6 +277,10 @@ option,optgroup{background:#1c1e28;color:var(--text)}
       <div class="pane" data-pane="discover">
         <div class="dsearch"><input id="gameSearch" class="inp" data-i18n-ph="disc.searchph" placeholder="Search Roblox games…"/><button class="btn solid" id="bGameSearch" data-i18n="disc.search">Search</button><button class="btn" id="bDiscoverHome" data-i18n="disc.popular">Popular</button></div>
         <div class="dscroll" id="discover"></div>
+      </div>
+      <div class="pane" data-pane="events">
+        <div class="evbar"><span class="muted" data-i18n="ev.hint">Tick your accounts on the Accounts tab, then Join to launch them all into the game together.</span><button class="btn" id="bEventsRefresh" data-i18n="ev.refresh">↻ Refresh</button></div>
+        <div class="dscroll" id="eventsList"></div>
       </div>
       <div class="pane" data-pane="analytics">
         <div class="spane">
@@ -364,6 +378,7 @@ function onEvent(m){
   else if(m.event==='launchers')applyLaunchers(m.items||[]);
   else if(m.event==='appinfo'){if(m.version){const sv=$('#sideVer');if(sv)sv.textContent='v'+m.version;const av=$('#aboutVer');if(av)av.textContent=m.version;}}
   else if(m.event==='update')showUpdate(m);
+  else if(m.event==='navigate'){const n=$('.nav[data-tab="'+m.tab+'"]');if(n)n.click();}
 }
 function maybeHide(){if(appReady&&minDone){$('#splash').classList.add('gone');$('.appinner').classList.add('ready');}}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -408,8 +423,9 @@ function selIds(){return[...selected];}
 // ---- i18n ----
 let curLang='en';
 const I18N={
- en:{'nav.accounts':'Accounts','nav.discover':'Discover','nav.analytics':'Analytics','nav.customize':'Customize','nav.settings':'Settings',
-  'sub.accounts':'Manage and launch your accounts','sub.discover':'Browse Roblox games — no launch needed','sub.analytics':'Usage at a glance','sub.customize':'Make Prism yours','sub.settings':'Preferences & info',
+ en:{'nav.accounts':'Accounts','nav.discover':'Discover','nav.events':'Events','nav.analytics':'Analytics','nav.customize':'Customize','nav.settings':'Settings',
+  'sub.accounts':'Manage and launch your accounts','sub.discover':'Browse Roblox games — no launch needed','sub.events':'Community play events — join with your accounts','sub.analytics':'Usage at a glance','sub.customize':'Make Prism yours','sub.settings':'Preferences & info',
+  'ev.hint':'Tick your accounts on the Accounts tab, then Join to launch them all into the game together.','ev.refresh':'↻ Refresh',
   'btn.login':'✦ Log in with Roblox','btn.paste':'Paste cookie','btn.import':'Import','btn.refresh':'Refresh','btn.relaunch':'↻ Relaunch last',
   'lbl.placeId':'PLACE ID','lbl.server':'SERVER · TRADE TOGETHER','btn.find':'Find servers','lbl.private':'PRIVATE SERVER','btn.launch':'Launch ▶','ph.private':'link or access code',
   'srv.any':'Any available server','disc.searchph':'Search Roblox games…','disc.search':'Search','disc.popular':'Popular',
@@ -434,7 +450,7 @@ function applyLang(lang){curLang=lang;
 $$('.nav').forEach(n=>n.onclick=()=>{const t=n.dataset.tab;$$('.nav').forEach(x=>x.classList.toggle('on',x===n));$$('.pane').forEach(p=>p.classList.toggle('on',p.dataset.pane===t));
   $('#headTitle').textContent=tr('nav.'+t);
   $('#headSub').textContent=tr('sub.'+t);
-  if(t==='analytics')loadStats();if(t==='discover'&&!discoverLoaded)loadDiscover();presencePing();});
+  if(t==='analytics')loadStats();if(t==='discover'&&!discoverLoaded)loadDiscover();if(t==='events')loadEvents();presencePing();});
 
 let discoverLoaded=false;
 function fmtN(n){return n>=999950?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n);}
@@ -470,6 +486,38 @@ function renderRecent(items,historyGap){const el=$('#recentLaunches');if(!el)ret
   if(!items.length){el.innerHTML='<div class="muted">'+(historyGap?'Per-launch history started in this version — earlier launches aren’t shown here, but new ones will appear.':'No launches yet — launch some and check back.')+'</div>';return;}
   el.innerHTML='';for(const it of items){const r=document.createElement('div');r.className='tl';
     r.innerHTML=`<span class="tlt">${esc(it.ago)}</span><span class="tla">${esc(it.account)}</span><span class="tlg">${esc(it.game)}</span>`;el.appendChild(r);}}
+
+// ---- events ----
+function evWhen(iso){const d=new Date(iso);if(isNaN(d))return{txt:'',live:false};
+  const ms=d.getTime()-Date.now();
+  const date=d.toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  if(ms<=0)return{txt:date,live:ms>-3*3600e3};
+  const mins=Math.round(ms/60000);let rel=mins<60?('in '+mins+'m'):mins<1440?('in '+Math.round(mins/60)+'h'):('in '+Math.round(mins/1440)+'d');
+  return{txt:date+'  ·  '+rel,live:false};}
+function eventCard(ev){const w=evWhen(ev.start);const c=document.createElement('div');c.className='evcard';
+  const sameServer=!!(ev.privateLink||ev.jobId);
+  const meta=[];if(ev.game)meta.push('🎮 '+esc(ev.game));if(ev.host)meta.push('host: '+esc(ev.host));if(sameServer)meta.push('🔒 same server');
+  c.innerHTML=`<div class="et">${w.live?'<span class="evlive">live now</span>':''}<span>${esc(ev.title)}</span></div>
+    ${w.txt?`<div class="ew">${esc(w.txt)}</div>`:''}
+    ${meta.length?`<div class="em">${meta.map(m=>`<span>${m}</span>`).join('')}</div>`:''}
+    ${ev.description?`<div class="ed">${esc(ev.description)}</div>`:''}
+    <div class="ea"></div>`;
+  const ea=c.querySelector('.ea');
+  if(ev.placeId){const j=document.createElement('button');j.className='btn solid';j.textContent=selected.size?('Join ▶  '+selected.size+' account'+(selected.size>1?'s':'')):'Join ▶';j.onclick=()=>joinEvent(ev);ea.appendChild(j);
+    const v=document.createElement('button');v.className='btn';v.textContent='View game';v.onclick=()=>call('openExternal',{url:'https://www.roblox.com/games/'+ev.placeId});ea.appendChild(v);}
+  return c;}
+function joinEvent(ev){guard(async()=>{
+  if(!selected.size){toast('Tick your accounts on the Accounts tab first','err');$('.nav[data-tab="accounts"]').click();return;}
+  const same=!!(ev.privateLink||ev.jobId);
+  if(warnN>0&&selected.size>warnN){const ok=await confirmModal('Join with '+selected.size+' accounts?',"You're about to open "+selected.size+" Roblox clients in "+(ev.game||ev.title)+(same?' (same server)':'')+".",'Join');if(!ok)return;}
+  toast('Launching '+(ev.game||ev.title)+(same?' (same server)':'')+'…','ok');
+  await call('launch',{userIds:selIds(),placeId:Number(ev.placeId),jobId:ev.jobId||null,private:ev.privateLink||''});});}
+async function loadEvents(){const el=$('#eventsList');el.innerHTML='<div class="muted" style="padding:18px">Loading events…</div>';
+  try{const r=await call('events.list');const list=(r&&r.events)||[];
+    if(!list.length){el.innerHTML='<div class="muted" style="padding:18px">No upcoming events right now. Check back soon!</div>';return;}
+    el.innerHTML='';for(const ev of list)el.appendChild(eventCard(ev));
+  }catch(e){el.innerHTML='<div class="muted" style="padding:18px">Could not load events. Try again later.</div>';}}
+$('#bEventsRefresh').onclick=()=>loadEvents();
 
 // ---- window chrome + server dropdown + modal ----
 function setMaxIcon(max){$('#wMax').innerHTML=max?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="4" width="12" height="12" rx="2"/><path d="M4 8v10a2 2 0 0 0 2 2h10"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';}

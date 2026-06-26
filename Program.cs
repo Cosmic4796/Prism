@@ -7,8 +7,18 @@ namespace RobloxMultiManager;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
+        // ---- single instance + prism:// handoff ----
+        string? deepLink = DeepLink.UrlFromArgs(args);
+        var primary = DeepLink.TryBecomePrimary();
+        if (primary is null)
+        {
+            // another Prism is already running -> hand it the link (or just focus) and exit
+            DeepLink.SendToPrimary(deepLink ?? "focus");
+            return;
+        }
+
         // ---- bootstrap ----
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
         Application.EnableVisualStyles();
@@ -37,6 +47,7 @@ internal static class Program
             e.SetObserved();
         };
         Log.Write($"Prism started (v{typeof(Program).Assembly.GetName().Version}).");
+        DeepLink.RegisterProtocol();
 
         // ---- service wiring ----
         var store = new SecureStore();
@@ -44,10 +55,14 @@ internal static class Program
         var launcher = new RobloxLauncher(api);
         var accounts = new AccountManager(store, api, launcher);
 
+        using (primary)
         using (api)
         using (launcher)
         {
-            Application.Run(new AppShell(accounts, launcher, api));
+            var shell = new AppShell(accounts, launcher, api);
+            if (!string.IsNullOrEmpty(deepLink)) shell.SetInitialDeepLink(deepLink);
+            DeepLink.StartServer(shell.OnDeepLink); // later prism:// clicks land here
+            Application.Run(shell);
         }
     }
 }

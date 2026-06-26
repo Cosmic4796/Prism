@@ -29,6 +29,7 @@ ids.json
 
 # Promo / personal assets + planning docs (not part of the public app)
 ROADMAP.md
+continue.md
 /prism.png
 /prism-pfp.png
 /prism-event-banner.png
@@ -37,3 +38,9 @@ ROADMAP.md
 assets/event-banner.png
 assets/pfp.png
 assets/logo-rp.png
+
+# private tooling (not part of the app)
+dashboard/
+
+# local encrypted backups
+backups/
