@@ -14,10 +14,10 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>prism.ico</ApplicationIcon>
     <Product>Prism</Product>
-    <AssemblyTitle>Prism — Roblox Account Manager</AssemblyTitle>
+    <AssemblyTitle>Prism Ã¢â‚¬â€ Roblox Account Manager</AssemblyTitle>
     <Company>Prism</Company>
     <!-- Publish with: dotnet publish -c Release -r win-x64 (add the self-contained flag to bundle the runtime). -->
-    <Version>1.1.5</Version>
+    <Version>1.1.9</Version>
     <!-- The WebView2 package ships a WPF wrapper (pulling WindowsBase 5.0) that we
          don't use; we only reference its WinForms control. Demote the resulting
          harmless WindowsBase version-conflict warning to a message. -->

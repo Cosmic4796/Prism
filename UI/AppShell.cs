@@ -65,6 +65,7 @@ public sealed class AppShell : Form
         _closeToTray = _settings.GetValueOrDefault("closeToTray") == "1";
         _minimizeToTray = _settings.GetValueOrDefault("minimizeToTray") == "1";
         _autoRejoin = _settings.GetValueOrDefault("autoRejoin") == "1";
+        _fullClose = _settings.GetValueOrDefault("fullCloseRoblox") != "0";
         _rpEnabled = _settings.GetValueOrDefault("richPresence") != "0";
         _launcher.Preferred = RobloxLauncher.ParseKind(_settings.GetValueOrDefault("launcher"));
         ApplyStartup(_settings.GetValueOrDefault("startWithWindows") == "1");
@@ -111,6 +112,7 @@ public sealed class AppShell : Form
     }
 
     private bool _autoRejoin;
+    private bool _fullClose = true;
     private readonly List<KeepSession> _sessions = new();
     private readonly object _sessionLock = new();
     private System.Windows.Forms.Timer? _keepAliveTimer;
@@ -128,6 +130,7 @@ public sealed class AppShell : Form
         public string Alias = "";
         public IntPtr Hwnd;
         public DateTime StartTime = DateTime.Now;
+        public DateTime? HiddenSince;
     }
 
     // ---- init ----
@@ -245,6 +248,13 @@ public sealed class AppShell : Form
                                 ? "Auto-rejoin on — clients you launch will be reopened if they close."
                                 : "Auto-rejoin off — running clients stay tracked, but won't be reopened.");
                         }
+                        else if (k == "fullCloseRoblox")
+                        {
+                            _fullClose = v != "0";
+                            PushLog(_fullClose
+                                ? "Full-close on — closing a client shuts Roblox all the way down, nothing left in the system tray."
+                                : "Full-close off — closing a client may leave Roblox running in the system tray.");
+                        }
                         Reply(id, true); break;
                     }
                 case "getStats": Reply(id, true, await BuildStatsAsync()); break;
@@ -271,9 +281,9 @@ public sealed class AppShell : Form
                 case "openExternal":
                     {
                         string url = Str(p, "url");
-                        if (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
-                            (url.Contains("github.com", StringComparison.OrdinalIgnoreCase) || url.Contains("roblox.com", StringComparison.OrdinalIgnoreCase)))
-                            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+                        if (Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps &&
+                            (HostMatches(u.Host, "github.com") || HostMatches(u.Host, "roblox.com")))
+                            try { Process.Start(new ProcessStartInfo(u.AbsoluteUri) { UseShellExecute = true }); } catch { }
                         Reply(id, true); break;
                     }
                 case "openLogs":
@@ -533,8 +543,32 @@ public sealed class AppShell : Form
                 }
             }
 
+            // Multi-instance needs Roblox's singleton lock, which Prism can only hold if no Roblox is
+            // already running. Roblox now hides in the tray on close, so on a multi-launch offer to clear it.
             if (!_launcher.MultiInstanceActive && targets.Count > 1)
-                PushLog("Warning: multi-instance is OFF — only one client may stay open. Close all Roblox windows and restart Prism.");
+            {
+                _launcher.AcquireSingleInstanceLock();   // maybe Roblox was closed since startup
+                if (!_launcher.MultiInstanceActive)
+                {
+                    var running = RobloxPidsSet();
+                    if (running.Count > 0)
+                    {
+                        var ans = MessageBox.Show(this,
+                            "Roblox is running in the background, which stops Prism from opening more than one account.\n\n" +
+                            "Close it now and turn on multi-instance? Any open Roblox will be closed.",
+                            "Turn on multi-instance", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        if (ans == DialogResult.Yes)
+                        {
+                            foreach (var pid in running) { try { using var pr = Process.GetProcessById(pid); pr.Kill(); } catch { } }
+                            await Task.Delay(1500);
+                            _launcher.AcquireSingleInstanceLock();
+                            SendStatus();
+                        }
+                    }
+                }
+                if (_launcher.MultiInstanceActive) PushLog("Multi-instance enabled — opening all your accounts.");
+                else PushLog("Warning: multi-instance is OFF — only one client may stay open. Close all Roblox windows (including the tray icon), then try again.");
+            }
 
             if (_launcher.Preferred != LauncherKind.Auto)
             {
@@ -561,6 +595,7 @@ public sealed class AppShell : Form
             for (int i = 0; i < targets.Count; i++)
             {
                 var a = targets[i];
+                bool launchedOk = false;
                 try
                 {
                     await _accounts.LaunchAsync(a, placeId, jobId, accessCode, linkCode);
@@ -579,10 +614,19 @@ public sealed class AppShell : Form
                         RegisterSession(ruid, a.DisplayName, placeId, jobId, accessCode, linkCode, preBatch);
 
                     SaveStats();
+                    launchedOk = true;
                 }
                 catch (Exception ex) { PushLog($"{a.Alias}: {ex.Message}"); }
 
-                if (i < targets.Count - 1) await Task.Delay(_launcher.UsesBootstrapper ? 3500 : 1800);
+                if (i < targets.Count - 1)
+                {
+                    // After the first SUCCESSFUL launch, wait for the client to actually be up before firing
+                    // the rest (this rides out a pending Roblox update, where the first launch runs the updater
+                    // that closes other clients and opens only one). If the first launch threw, there is no
+                    // client to wait for, so move on instead of stalling the whole 120s timeout.
+                    if (i == 0 && launchedOk) await WaitForFirstClientReadyAsync(preBatch);
+                    else await Task.Delay(_launcher.UsesBootstrapper ? 3500 : 1800);
+                }
             }
             SaveStats();
             if (_rpEnabled) _rp.Update(null, $"Launched {targets.Count} client{(targets.Count == 1 ? "" : "s")}");
@@ -683,9 +727,45 @@ public sealed class AppShell : Form
         }
     }
 
+    // Roblox 2026 can leave a "closed" client alive in the system tray instead of exiting.
+    // Watch each client we launched: once it has shown a window, if its process has no visible
+    // window for a few seconds the user closed it to the tray, so shut it down. Re-adopting the
+    // current main window first avoids killing a client that just toggled fullscreen, which can
+    // recreate its window.
+    private void SweepTrayClosedClients()
+    {
+        if (!_fullClose) return;
+        List<KeepSession> watch;
+        lock (_sessionLock)
+            watch = _sessions.Where(s => !s.Busy && s.Pid != 0 && s.Hwnd != IntPtr.Zero).ToList();
+        bool closedAny = false;
+        foreach (var s in watch)
+        {
+            try
+            {
+                using var pr = Process.GetProcessById(s.Pid);
+                pr.Refresh();
+                IntPtr cur = pr.MainWindowHandle;
+                if (cur != IntPtr.Zero && IsWindowVisible(cur)) { s.Hwnd = cur; s.HiddenSince = null; continue; }
+                s.HiddenSince ??= DateTime.UtcNow;
+                if ((DateTime.UtcNow - s.HiddenSince.Value).TotalSeconds < 5) continue;
+                pr.Kill();
+                // Treat a tray-close as an intentional close: drop the session so auto-rejoin does not
+                // immediately reopen the window the user deliberately closed (matches closeClient).
+                s.HiddenSince = null; s.Pid = 0;
+                lock (_sessionLock) _sessions.Remove(s);
+                closedAny = true;
+            }
+            catch { s.HiddenSince = null; }
+        }
+        if (closedAny) PushClients();
+    }
+
     private async Task KeepAliveTickAsync()
     {
         if (_keepAliveTicking || IsDisposed) return;
+
+        SweepTrayClosedClients();
 
         var live = RobloxProcesses().Select(p => p.pid).ToHashSet();
         List<KeepSession> dead;
@@ -835,6 +915,39 @@ public sealed class AppShell : Form
 
     private static HashSet<int> RobloxPidsSet() => RobloxProcesses().Select(p => p.pid).ToHashSet();
 
+    // After the first client launches, wait until a new Roblox client is up AND stable before
+    // launching the rest. This rides out a pending Roblox update (the updater can take a while and
+    // closes/blocks other clients) so multi-instance doesn't collapse to a single window. Best-effort:
+    // returns once a fresh client has been running steadily, or after a 2-minute safety cap.
+    private async Task WaitForFirstClientReadyAsync(HashSet<int> preBatch)
+    {
+        var start = DateTime.UtcNow;
+        double Elapsed() => (DateTime.UtcNow - start).TotalMilliseconds;
+        string lastSig = ""; double stableSince = 0; bool updateNoted = false;
+        const double timeoutMs = 120_000, stableMs = 4_000, minStartMs = 2_000;
+        while (Elapsed() < timeoutMs && !IsDisposed)
+        {
+            await Task.Delay(1000);
+            var fresh = RobloxProcesses().Select(p => p.pid).Where(pid => !preBatch.Contains(pid)).OrderBy(x => x).ToList();
+            if (fresh.Count >= 1)
+            {
+                string sig = string.Join(",", fresh);
+                if (sig == lastSig) { if (Elapsed() - stableSince >= stableMs) return; } // client up + steady
+                else { lastSig = sig; stableSince = Elapsed(); }
+            }
+            else
+            {
+                lastSig = ""; // no client yet — updater/launcher still working
+                if (!updateNoted && Elapsed() > 6_000)
+                {
+                    updateNoted = true;
+                    PushLog("Roblox looks like it's updating — waiting for the first client to be ready before launching the rest…");
+                }
+            }
+            if (Elapsed() < minStartMs) { stableSince = Elapsed(); lastSig = ""; } // give the very first client a moment
+        }
+    }
+
     // ---- demo capture ----
     private void OnDemoNavCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
@@ -940,25 +1053,40 @@ public sealed class AppShell : Form
         _infoRunning = true;
         try
         {
+            using var gate = new SemaphoreSlim(4);   // a few at a time: quick, but still gentle on Roblox's rate limit
+            var tasks = new List<Task>();
             foreach (var a in _accounts.Snapshot())
             {
                 if (a.UserId is not long uid) continue;
                 Post(new { @event = "acctinfo", userId = uid, health = "checking", robux = (long?)null, premium = (bool?)null });
-                try
-                {
-                    var (ok, robux, premium) = await _accounts.GetAccountStatusAsync(a);
-                    _acctInfo[uid] = (ok ? "ok" : "dead", robux, premium);
-                    Post(new { @event = "acctinfo", userId = uid, health = ok ? "ok" : "dead", robux, premium });
-                }
-                catch
-                {
-                    _acctInfo[uid] = ("unknown", null, null);
-                    Post(new { @event = "acctinfo", userId = uid, health = "unknown", robux = (long?)null, premium = (bool?)null });
-                }
-                await Task.Delay(900);
+                await gate.WaitAsync();
+                tasks.Add(CheckOneAsync(a, uid, gate));
             }
+            await Task.WhenAll(tasks);
         }
         finally { _infoRunning = false; }
+    }
+
+    // one account's status + a fresh avatar. Awaits resume on the UI thread, so the shared
+    // dictionaries are only ever touched there; the gate caps how many run at once.
+    private async Task CheckOneAsync(Account a, long uid, SemaphoreSlim gate)
+    {
+        try
+        {
+            var (ok, robux, premium) = await _accounts.GetAccountStatusAsync(a);
+            _acctInfo[uid] = (ok ? "ok" : "dead", robux, premium);
+            Post(new { @event = "acctinfo", userId = uid, health = ok ? "ok" : "dead", robux, premium });
+        }
+        catch
+        {
+            _acctInfo[uid] = ("unknown", null, null);
+            Post(new { @event = "acctinfo", userId = uid, health = "unknown", robux = (long?)null, premium = (bool?)null });
+        }
+        finally
+        {
+            _ = ResolveAvatarAsync(uid);   // re-fetch so avatar changes show up on refresh
+            gate.Release();
+        }
     }
 
     private async void StartAutoRefresh()
@@ -1185,6 +1313,7 @@ public sealed class AppShell : Form
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool SetWindowText(IntPtr hWnd, string text);
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hWnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr hWnd);
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
     [DllImport("gdi32.dll")] private static extern IntPtr CreateRectRgn(int l, int t, int r, int b);
@@ -1300,11 +1429,26 @@ public sealed class AppShell : Form
             ago = RelativeAgo(e.Time),
         }).ToArray();
 
+        // launch history over time (bucketed by local day) for the activity chart + time-window tiles
+        DateTime DayOf(LaunchEntry e) => DateTime.TryParse(e.Time, null, System.Globalization.DateTimeStyles.RoundtripKind, out var dt) ? dt.ToLocalTime().Date : DateTime.MinValue;
+        var today0 = DateTime.Now.Date;
+        int todayCount = _stats.History.Count(e => DayOf(e) == today0);
+        int weekCount = _stats.History.Count(e => { var d = DayOf(e); return d != DateTime.MinValue && (today0 - d).TotalDays < 7; });
+        const int DAYS = 21;
+        var daily = Enumerable.Range(0, DAYS).Select(i =>
+        {
+            var day = today0.AddDays(-(DAYS - 1 - i));
+            return (object)new { label = day.ToString("MMM d"), dow = day.ToString("ddd"), count = _stats.History.Count(e => DayOf(e) == day) };
+        }).ToArray();
+
         return new
         {
             accounts = list.Count,
             totalLaunches = _stats.TotalLaunches,
             multiInstance = _launcher.MultiInstanceActive,
+            today = todayCount,
+            week = weekCount,
+            daily,
             topGames,
             topAccounts,
             recent,
@@ -1412,7 +1556,7 @@ public sealed class AppShell : Form
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_statsPath)!);
-            File.WriteAllText(_statsPath, JsonSerializer.Serialize(_stats));
+            AtomicWriteAllText(_statsPath, JsonSerializer.Serialize(_stats));
         }
         catch { }
     }
@@ -1432,10 +1576,25 @@ public sealed class AppShell : Form
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_settingsPath)!);
-            File.WriteAllText(_settingsPath, JsonSerializer.Serialize(_settings));
+            AtomicWriteAllText(_settingsPath, JsonSerializer.Serialize(_settings));
         }
         catch { }
     }
+
+    // write to a temp file then atomically replace, so a crash or power loss mid-write can't leave a
+    // truncated file (which LoadStats/LoadSettings would silently reset to empty, wiping toggles/history)
+    private static void AtomicWriteAllText(string path, string contents)
+    {
+        string tmp = path + ".tmp";
+        File.WriteAllText(tmp, contents);
+        if (File.Exists(path)) File.Replace(tmp, path, null);
+        else File.Move(tmp, path);
+    }
+
+    // true if host equals domain or is a subdomain of it (real host check, not a substring match)
+    private static bool HostMatches(string host, string domain) =>
+        host.Equals(domain, StringComparison.OrdinalIgnoreCase) ||
+        host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase);
 
     private static string ReadAppHtml()
     {

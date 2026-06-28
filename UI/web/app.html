@@ -135,6 +135,18 @@ option,optgroup{background:#1c1e28;color:var(--text)}
 .tgl{width:42px;height:24px;border-radius:13px;background:var(--line);position:relative;cursor:pointer;transition:.22s}
 .tgl:after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.24s cubic-bezier(.5,1.6,.5,1)}
 .tgl.on{background:var(--grad)}.tgl.on:after{left:21px}
+.running{margin-top:12px;background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));padding:11px 13px;animation:upIn .3s both}
+.running .rhead{display:flex;align-items:center;gap:12px;margin-bottom:9px}
+.running .rttl{font-size:calc(12px*var(--fs));font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sub)}
+.running .rgrow{flex:1}
+.running .rtile{display:flex;align-items:center;gap:7px;font-size:calc(12.5px*var(--fs));color:var(--sub);cursor:pointer}
+.rlist{display:flex;flex-direction:column;gap:6px;max-height:168px;overflow:auto}
+.ritem{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;background:var(--row);border:1px solid var(--line)}
+.ritem .rdot{width:8px;height:8px;border-radius:50%;background:#4ade9e;box-shadow:0 0 7px #4ade9e;flex:none}
+.ritem .ralias{font-weight:600;font-size:calc(13px*var(--fs));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.ritem .rup{font-size:calc(12px*var(--fs));color:var(--sub);font-variant-numeric:tabular-nums}
+.ritem .rx{width:24px;height:24px;display:grid;place-items:center;border-radius:7px;color:var(--sub);cursor:pointer;flex:none;font-size:13px}
+.ritem .rx:hover{background:var(--rowHover);color:var(--red)}
 .about{font-size:12.5px;color:var(--sub);line-height:1.7}.about b{color:var(--text)}
 .srow .sval{font-size:12.5px;color:var(--accentText);font-weight:600;width:50px;text-align:right;font-variant-numeric:tabular-nums}
 .srow .rng{margin-left:12px}
@@ -145,7 +157,13 @@ option,optgroup{background:#1c1e28;color:var(--text)}
 .themechip .sw2{width:14px;height:14px;border-radius:4px;flex:none}
 .themechip .del{color:var(--sub);font-size:15px;line-height:1;margin-left:2px}.themechip .del:hover{color:var(--red)}
 .themechip .cpy,.themechip .gadd{color:var(--sub);font-size:14px;line-height:1;margin-left:2px}.themechip .cpy:hover,.themechip .gadd:hover{color:var(--accent)}
-.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
+.daychart{display:flex;align-items:stretch;gap:4px;height:140px}
+.daychart .dc{flex:1;display:flex;flex-direction:column;min-width:0}
+.daychart .dcbw{flex:1;display:flex;align-items:flex-end}
+.daychart .dcb{width:100%;background:var(--grad);border-radius:4px;min-height:2px;height:0;transition:height .7s cubic-bezier(.3,1,.4,1)}
+.daychart .dcb.z{background:var(--row)}
+.daychart .dcl{font-size:9px;color:var(--sub);text-align:center;margin-top:5px;white-space:nowrap;overflow:hidden;height:12px}
 .stat{background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));animation:pop .3s both}
 .stat:nth-child(2){animation-delay:.05s}.stat:nth-child(3){animation-delay:.1s}
 .stat .sv{font-size:26px;font-weight:800;color:var(--accentText);line-height:1.1}
@@ -271,6 +289,10 @@ option,optgroup{background:#1c1e28;color:var(--text)}
           <div class="lf g"><label data-i18n="lbl.private">PRIVATE SERVER</label><input id="private" class="inp" data-i18n-ph="ph.private" placeholder="link or access code"/></div>
           <button class="btn solid big" id="bLaunch" data-i18n="btn.launch">Launch ▶</button>
         </div>
+        <div class="running" id="running" style="display:none">
+          <div class="rhead"><span class="rttl">Running <span id="runCount">0</span></span><div class="rgrow"></div><label class="rtile" id="tileWrap">Auto-tile<div class="tgl" id="swTile"></div></label><button class="btn" id="bCloseAll">✕ Close all</button></div>
+          <div class="rlist" id="runList"></div>
+        </div>
         <div class="console" id="console"></div>
       </div>
 
@@ -287,8 +309,11 @@ option,optgroup{background:#1c1e28;color:var(--text)}
           <div class="statgrid">
             <div class="stat"><div class="sv" id="stAccounts">0</div><div class="sl" data-i18n="stat.accounts">ACCOUNTS</div></div>
             <div class="stat"><div class="sv" id="stLaunches">0</div><div class="sl" data-i18n="stat.launches">TOTAL LAUNCHES</div></div>
+            <div class="stat"><div class="sv" id="stToday">0</div><div class="sl" data-i18n="stat.today">LAUNCHES TODAY</div></div>
+            <div class="stat"><div class="sv" id="stWeek">0</div><div class="sl" data-i18n="stat.week">THIS WEEK</div></div>
             <div class="stat"><div class="sv sm" id="stTop">—</div><div class="sl" data-i18n="stat.top">MOST LAUNCHED GAME</div></div>
           </div>
+          <div class="sec"><div class="cap" data-i18n="cap.activity">Launch activity · last 21 days</div><div class="daychart" id="launchChart"></div></div>
           <div class="sec"><div class="cap" data-i18n="cap.topgames">Top games</div><div class="bars" id="topGames"></div></div>
           <div class="sec"><div class="cap" data-i18n="cap.topaccts">Most active accounts</div><div class="bars" id="topAccts"></div></div>
           <div class="sec"><div class="cap" data-i18n="cap.recent">Recent launches</div><div class="timeline" id="recentLaunches"></div></div>
@@ -329,6 +354,7 @@ option,optgroup{background:#1c1e28;color:var(--text)}
             </select></div>
             <div class="srow"><div class="lbl" data-i18n="lbl.warn">Warn before launching over</div><div class="sval" id="vWarn">5</div><input type="range" class="rng" id="rWarn" min="0" max="20" step="1" value="5"></div>
             <div class="srow"><div class="lbl" data-i18n="lbl.autorejoin">Auto-rejoin (keep clients open)<div style="font-size:11px;font-weight:400;color:var(--sub);margin-top:2px;max-width:330px">Reopens a Roblox client you launch from here if it closes or crashes — handy for AFK grinding.</div></div><div class="tgl" id="swRejoin"></div></div>
+            <div class="srow"><div class="lbl" data-i18n="lbl.fullclose">Fully close Roblox<div style="font-size:11px;font-weight:400;color:var(--sub);margin-top:2px;max-width:330px" data-i18n="hint.fullclose">Roblox now hides in the system tray when you close a client. Prism shuts it all the way down instead, so closing really closes it.</div></div><div class="tgl on" id="swFullClose"></div></div>
             <div class="srow"><div class="lbl" data-i18n="lbl.presence">Discord Rich Presence<div style="font-size:11px;font-weight:400;color:var(--sub);margin-top:2px;max-width:330px" data-i18n="hint.presence">Show "Playing Prism" on your Discord profile while the app is open, with Download & Join buttons.</div></div><div class="tgl on" id="swPresence"></div></div>
             <div class="srow"><div class="lbl" data-i18n="lbl.mintray">Minimize to tray</div><div style="flex:1"></div><div class="tgl" id="swTrayMin"></div></div>
             <div class="srow"><div class="lbl" data-i18n="lbl.closetray">Close to tray</div><div style="flex:1"></div><div class="tgl" id="swTrayClose"></div></div>
@@ -379,9 +405,22 @@ function onEvent(m){
   else if(m.event==='appinfo'){if(m.version){const sv=$('#sideVer');if(sv)sv.textContent='v'+m.version;const av=$('#aboutVer');if(av)av.textContent=m.version;}}
   else if(m.event==='update')showUpdate(m);
   else if(m.event==='navigate'){const n=$('.nav[data-tab="'+m.tab+'"]');if(n)n.click();}
+  else if(m.event==='clients')renderRunning(m.clients||[],!!m.tiled);
 }
 function maybeHide(){if(appReady&&minDone){$('#splash').classList.add('gone');$('.appinner').classList.add('ready');}}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+// ---- Running clients panel (Client Control): the C# bridge pushes a 'clients' event with each
+// client's alias + epoch startedMs + the auto-tile state; uptime ticks client-side every second ----
+function fmtUptime(ms){let s=Math.floor((Date.now()-ms)/1000);if(s<0)s=0;const h=Math.floor(s/3600),mn=Math.floor(s%3600/60),sc=s%60;return (h?h+'h ':'')+((h||mn)?mn+'m ':'')+sc+'s';}
+function renderRunning(list,tiled){const box=$('#running');if(!box)return;
+  const t=$('#swTile');if(t)t.classList.toggle('on',!!tiled);
+  if(!list.length){box.style.display='none';$('#runList').innerHTML='';return;}
+  box.style.display='block';$('#runCount').textContent=list.length;
+  $('#runList').innerHTML=list.map(c=>`<div class="ritem"><span class="rdot"></span><span class="ralias">${esc(c.alias||('id '+c.userId))}</span><span class="rup" data-s="${c.startedMs}">${fmtUptime(c.startedMs)}</span><div class="rx" data-close="${c.userId}" title="Close this client">✕</div></div>`).join('');
+  $('#runList').querySelectorAll('[data-close]').forEach(x=>x.onclick=()=>call('closeClient',{userId:Number(x.dataset.close)}).catch(()=>{}));}
+setInterval(()=>{document.querySelectorAll('#runList .rup').forEach(el=>{const s=Number(el.dataset.s);if(s)el.textContent=fmtUptime(s);});},1000);
+{const ca=$('#bCloseAll');if(ca)ca.onclick=()=>call('closeAllClients').catch(()=>{});const st=$('#swTile');if(st)st.onclick=()=>call('tileClients').catch(()=>{});}
 function setStatus(on,text){const l=$('#statLine');l.className='statline '+(on?'on':'off');$('#statTxt').textContent=text;}
 function logLine(msg){const c=$('#console');c.innerHTML+=`<span class="t">[${new Date().toLocaleTimeString()}]</span> ${esc(msg)}\n`;c.scrollTop=c.scrollHeight;}
 function toast(msg,kind){const t=document.createElement('div');t.className='toast '+(kind||'');t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='.35s';setTimeout(()=>t.remove(),360)},4000);}
@@ -429,11 +468,11 @@ const I18N={
   'btn.login':'✦ Log in with Roblox','btn.paste':'Paste cookie','btn.import':'Import','btn.refresh':'Refresh','btn.relaunch':'↻ Relaunch last',
   'lbl.placeId':'PLACE ID','lbl.server':'SERVER · TRADE TOGETHER','btn.find':'Find servers','lbl.private':'PRIVATE SERVER','btn.launch':'Launch ▶','ph.private':'link or access code',
   'srv.any':'Any available server','disc.searchph':'Search Roblox games…','disc.search':'Search','disc.popular':'Popular',
-  'stat.accounts':'ACCOUNTS','stat.launches':'TOTAL LAUNCHES','stat.top':'MOST LAUNCHED GAME','cap.topgames':'Top games','cap.topaccts':'Most active accounts','cap.recent':'Recent launches','cap.general':'General',
+  'stat.accounts':'ACCOUNTS','stat.launches':'TOTAL LAUNCHES','stat.today':'LAUNCHES TODAY','stat.week':'THIS WEEK','stat.top':'MOST LAUNCHED GAME','cap.activity':'Launch activity · last 21 days','cap.topgames':'Top games','cap.topaccts':'Most active accounts','cap.recent':'Recent launches','cap.general':'General',
   'cap.accent':'Accent color','cap.appearance':'Appearance','cap.themes':'Themes','cap.gallery':'Theme gallery','cap.behavior':'Behavior','cap.about':'About',
   'lbl.uiscale':'UI scale','lbl.roundness':'Roundness','lbl.glass':'Glass opacity','lbl.blur':'Background blur','lbl.font':'Font','lbl.motion':'Reduce motion',
   'btn.savetheme':'＋ Save current as theme','btn.importcode':'⬆ Import code','btn.reset':'Reset to defaults',
-  'lbl.warn':'Warn before launching over','lbl.autorejoin':'Auto-rejoin (keep clients open)','lbl.mintray':'Minimize to tray','lbl.closetray':'Close to tray','lbl.startup':'Start with Windows',
+  'lbl.warn':'Warn before launching over','lbl.autorejoin':'Auto-rejoin (keep clients open)','lbl.fullclose':'Fully close Roblox','hint.fullclose':'Roblox now hides in the system tray when you close a client. Prism shuts it all the way down instead, so closing really closes it.','lbl.mintray':'Minimize to tray','lbl.closetray':'Close to tray','lbl.startup':'Start with Windows',
   'lbl.launcher':'Roblox launcher','hint.launcher':'Open clients through your bootstrapper (Bloxstrap, Fishstrap, Froststrap) or the official client. Multi-instance still works.','launcher.auto':'Auto (system default)','launcher.roblox':'Roblox (official)','launcher.notfound':'not found',
   'lbl.presence':'Discord Rich Presence','hint.presence':'Show "Playing Prism" on your Discord profile while the app is open, with Download & Join buttons.',
   'btn.checkupd':'Check for updates','btn.openlogs':'Open logs'}
@@ -472,7 +511,9 @@ $('#bDiscoverHome').onclick=()=>{$('#gameSearch').value='';loadDiscover();};
 
 async function loadStats(){try{const s=await call('getStats');
   $('#stAccounts').textContent=s.accounts;$('#stLaunches').textContent=s.totalLaunches;
+  $('#stToday').textContent=s.today||0;$('#stWeek').textContent=s.week||0;
   $('#stTop').textContent=(s.topGames&&s.topGames[0])?s.topGames[0].name:'—';
+  dayChart('#launchChart',s.daily||[]);
   bars('#topGames',(s.topGames||[]).map(g=>({label:g.name,count:g.count})));
   bars('#topAccts',(s.topAccounts||[]).map(a=>({label:a.name,count:a.count})));
   renderRecent(s.recent||[],s.historyGap);
@@ -482,6 +523,13 @@ function bars(sel,items){const el=$(sel);if(!items.length){el.innerHTML='<div cl
   const max=Math.max(...items.map(i=>i.count),1);el.innerHTML='';
   for(const it of items){const r=document.createElement('div');r.className='bar';r.innerHTML=`<span class="bl">${esc(it.label)}</span><span class="bt"><i></i></span><span class="bc">${it.count}</span>`;el.appendChild(r);
     requestAnimationFrame(()=>{r.querySelector('i').style.width=Math.round(it.count/max*100)+'%';});}}
+function dayChart(sel,days){const el=$(sel);if(!el)return;
+  if(!days||!days.length){el.innerHTML='<div class="muted">No launches yet — launch some and check back.</div>';return;}
+  const max=Math.max(...days.map(d=>d.count),1);el.innerHTML='';
+  days.forEach((d,i)=>{const c=document.createElement('div');c.className='dc';
+    c.innerHTML=`<div class="dcbw"><div class="dcb${d.count?'':' z'}" title="${esc(d.label)}: ${d.count} launch${d.count===1?'':'es'}"></div></div><div class="dcl">${(i%3===0||i===days.length-1)?esc((d.label||'').replace(/^[A-Za-z]+ /,'')):''}</div>`;
+    el.appendChild(c);const bar=c.querySelector('.dcb');
+    requestAnimationFrame(()=>{bar.style.height=Math.round(d.count/max*100)+'%';});});}
 function renderRecent(items,historyGap){const el=$('#recentLaunches');if(!el)return;
   if(!items.length){el.innerHTML='<div class="muted">'+(historyGap?'Per-launch history started in this version — earlier launches aren’t shown here, but new ones will appear.':'No launches yet — launch some and check back.')+'</div>';return;}
   el.innerHTML='';for(const it of items){const r=document.createElement('div');r.className='tl';
@@ -614,6 +662,7 @@ function applySettings(s){
   if(s.reduceMotion!=null){const rm=s.reduceMotion==='1';$('#swMotion').classList.toggle('on',rm);document.body.classList.toggle('no-anim',rm);}
   if(s.warnN!=null){warnN=parseInt(s.warnN)||0;rWarn.value=warnN;$('#vWarn').textContent=warnN===0?'Off':warnN;}
   if(s.autoRejoin!=null)$('#swRejoin').classList.toggle('on',s.autoRejoin==='1');
+  if(s.fullCloseRoblox!=null)$('#swFullClose').classList.toggle('on',s.fullCloseRoblox!=='0');
   if(s.richPresence!=null)$('#swPresence').classList.toggle('on',s.richPresence!=='0');
   if(s.launcher){const e=$('#launcherSel');if(e)e.value=s.launcher;}
   if(s.minimizeToTray!=null)$('#swTrayMin').classList.toggle('on',s.minimizeToTray==='1');
@@ -674,6 +723,7 @@ let warnN=5;
 const rWarn=$('#rWarn');
 rWarn.oninput=()=>{warnN=parseInt(rWarn.value)||0;$('#vWarn').textContent=warnN===0?'Off':warnN;};rWarn.onchange=()=>persist('warnN',warnN);
 $('#swRejoin').onclick=()=>{const on=$('#swRejoin').classList.toggle('on');persist('autoRejoin',on?'1':'0');};
+$('#swFullClose').onclick=()=>{const on=$('#swFullClose').classList.toggle('on');persist('fullCloseRoblox',on?'1':'0');};
 $('#swPresence').onclick=()=>{const on=$('#swPresence').classList.toggle('on');persist('richPresence',on?'1':'0');};
 function presencePing(){const t=document.querySelector('.nav.on')?.dataset.tab||'accounts';call('presence',{page:t}).catch(()=>{});}
 const LAUNCHER_NAMES={auto:()=>tr('launcher.auto'),roblox:()=>tr('launcher.roblox'),bloxstrap:()=>'Bloxstrap',fishstrap:()=>'Fishstrap',froststrap:()=>'Froststrap'};

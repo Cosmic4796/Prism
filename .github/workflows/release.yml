@@ -1,0 +1,76 @@
+name: Release Prism
+
+# Build the single-file Prism.exe on a Windows runner and publish a GitHub release — all in the cloud,
+# no PC / .NET SDK / gh needed. Run it from the Actions tab:
+#   Actions -> "Release Prism" -> Run workflow -> enter the version (e.g. 1.2.0) + a one-line note.
+# The Discord bot announces the new release automatically and in-app auto-update picks it up.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "New version, X.Y.Z (e.g. 1.2.0)"
+        required: true
+      notes:
+        description: "One line about what's new (shown in the release + Discord)"
+        required: false
+        default: "Improvements and bug fixes."
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Validate + set version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = "${{ github.event.inputs.version }}".Trim()
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { throw "Version must look like X.Y.Z (got '$v')." }
+          gh release view "v$v" -R $env:GITHUB_REPOSITORY 1>$null 2>$null
+          if ($LASTEXITCODE -eq 0) { throw "Release v$v already exists — pick a higher version." }
+          (Get-Content RobloxMultiManager.csproj -Raw) -replace '<Version>[^<]+</Version>', "<Version>$v</Version>" | Set-Content RobloxMultiManager.csproj -NoNewline
+          "VERSION=$v" | Out-File -Append $env:GITHUB_ENV
+
+      - name: Build single-file exe
+        run: dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --nologo
+
+      - name: Verify + checksum + notes
+        shell: pwsh
+        run: |
+          $exe = "bin/Release/net8.0-windows/win-x64/publish/Prism.exe"
+          if (-not (Test-Path $exe)) { throw "Build finished but $exe is missing." }
+          $fv = (Get-Item $exe).VersionInfo.FileVersion
+          if ($fv -notlike "$env:VERSION*") { throw "Built exe is v$fv but releasing v$env:VERSION (stale build)." }
+          $sha = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLower()
+          $notes = "${{ github.event.inputs.notes }}"
+          "$notes`r`n`r`nDownload below, or let Prism update itself.`r`n`r`n---`r`n**Prism.exe SHA-256:** ``$sha``" | Set-Content notes.md
+          Write-Host "exe v$fv  SHA-256 $sha"
+
+      - name: Commit the version bump
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add RobloxMultiManager.csproj
+          git commit -m "Release v$env:VERSION"
+          git push origin "HEAD:${{ github.ref_name }}"
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Prism v${{ env.VERSION }}
+          body_path: notes.md
+          files: bin/Release/net8.0-windows/win-x64/publish/Prism.exe
+          make_latest: "true"

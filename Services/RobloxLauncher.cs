@@ -45,7 +45,10 @@ public sealed class RobloxLauncher : IDisposable
 
     private string? ResolvePreferredExe()
     {
-        if (_resolvedValid) return _resolvedExe;
+        // re-resolve if uncached, or the cached exe vanished (e.g. Roblox updated to a new version
+        // folder and deleted the old one) — otherwise we'd fall back to the system handler, which
+        // right after an update is the installer/bootstrapper and only opens a single client.
+        if (_resolvedValid && (_resolvedExe is null || File.Exists(_resolvedExe))) return _resolvedExe;
         _resolvedExe = _preferred switch
         {
             LauncherKind.Roblox     => FindRobloxPlayer(LocalAppData),

@@ -39,8 +39,12 @@ assets/event-banner.png
 assets/pfp.png
 assets/logo-rp.png
 
-# private tooling (not part of the app)
+# private tooling + infra (not part of the public app — keep server details out of the repo)
 dashboard/
+ops/
+deploy.ps1
+rollback.ps1
+RUNBOOK.md
 
 # local encrypted backups
 backups/

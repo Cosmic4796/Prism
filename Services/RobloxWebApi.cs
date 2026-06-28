@@ -45,16 +45,37 @@ public sealed class RobloxWebApi : IDisposable
 
     // ---- cookie validation + user info ----
 
+    // Send with a short backoff on 429 so a burst of status checks doesn't flag good accounts as failed.
+    private async Task<HttpResponseMessage> SendWithRetryAsync(Func<HttpRequestMessage> build, CancellationToken ct)
+    {
+        for (int attempt = 0; ; attempt++)
+        {
+            var req = build();
+            HttpResponseMessage resp;
+            try { resp = await _http.SendAsync(req, ct).ConfigureAwait(false); }
+            finally { req.Dispose(); }
+            if (resp.StatusCode == HttpStatusCode.TooManyRequests && attempt < 2)
+            {
+                resp.Dispose();
+                await Task.Delay(800 * (attempt + 1), ct).ConfigureAwait(false);
+                continue;
+            }
+            return resp;
+        }
+    }
+
     public async Task<RobloxUser?> ValidateCookieAndGetUserAsync(
         string roblosecurityCookie, CancellationToken ct = default)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Get, AuthenticatedUserUrl);
-        AddCookie(req, roblosecurityCookie);
-
         HttpResponseMessage resp;
         try
         {
-            resp = await _http.SendAsync(req, ct).ConfigureAwait(false);
+            resp = await SendWithRetryAsync(() =>
+            {
+                var r = new HttpRequestMessage(HttpMethod.Get, AuthenticatedUserUrl);
+                AddCookie(r, roblosecurityCookie);
+                return r;
+            }, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -569,6 +590,10 @@ public sealed class RobloxWebApi : IDisposable
 
     private void CaptureCookieRotation(string sentCookie, HttpResponseMessage resp)
     {
+        // Only trust a rotated cookie from a successful response. A 401/403/429 (expired, CSRF
+        // challenge, rate-limit) can carry a Set-Cookie that is NOT a valid replacement; persisting
+        // it over the account's good cookie would brick the account and force a re-add.
+        if (!resp.IsSuccessStatusCode) return;
         if (!resp.Headers.TryGetValues("Set-Cookie", out var setCookies)) return;
 
         foreach (string sc in setCookies)
